@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "effective_date": "2026-09-22",
+  "selection_rule": "Choose the closest primary industry template, then enable/disable modules to match the client. Do not invent a new template when an existing template plus modules fits.",
+  "templates": {
+    "generic_business": {
+      "label": "Generic Business",
+      "default_environment": "business",
+      "recommended_presence": "voice",
+      "recommended_capability": "act",
+      "pages": ["home", "about", "services", "case-studies-or-portfolio", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "lead_capture", "forms", "handoff", "analytics"],
+      "common_integrations": ["Postmark", "HubSpot-or-Pipedrive"]
+    },
+    "hospitality": {
+      "label": "Hospitality / Hotel / Villa / Resort",
+      "default_environment": "commerce_booking",
+      "recommended_presence": "human",
+      "recommended_capability": "act",
+      "pages": ["home", "rooms-or-units", "unit-detail", "experiences", "offers", "gallery", "booking", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "recommendations", "availability", "booking", "transactional_email", "handoff", "analytics"],
+      "common_integrations": ["PMS-or-booking-engine", "Postmark", "Midtrans-or-Stripe"]
+    },
+    "restaurant": {
+      "label": "Restaurant / F&B",
+      "default_environment": "commerce_booking",
+      "recommended_presence": "voice",
+      "recommended_capability": "act",
+      "pages": ["home", "menu", "offers", "reservation", "events", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "menu_recommendation", "reservation", "lead_capture", "transactional_email", "handoff", "analytics"],
+      "common_integrations": ["reservation-system-or-Cal.com", "Postmark", "Midtrans-if-prepayment"]
+    },
+    "clinic": {
+      "label": "Clinic / Dental / Wellness",
+      "default_environment": "business",
+      "recommended_presence": "voice",
+      "recommended_capability": "act",
+      "pages": ["home", "services", "practitioners", "locations", "appointment", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "service_matching", "appointment", "lead_capture", "transactional_email", "handoff", "analytics"],
+      "common_integrations": ["Cal.com-or-clinic-scheduler", "Postmark", "CRM"]
+    },
+    "real_estate": {
+      "label": "Real Estate",
+      "default_environment": "business",
+      "recommended_presence": "human",
+      "recommended_capability": "act",
+      "pages": ["home", "properties", "property-detail", "developments", "agents", "schedule-viewing", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "property_recommendation", "comparison", "lead_qualification", "viewing_booking", "crm", "handoff", "analytics"],
+      "common_integrations": ["CRM", "calendar", "Postmark"]
+    },
+    "ecommerce": {
+      "label": "E-commerce / Retail",
+      "default_environment": "commerce_booking",
+      "recommended_presence": "human",
+      "recommended_capability": "transact",
+      "pages": ["home", "catalog", "product-detail", "cart", "checkout", "account", "order-status", "faq", "support"],
+      "modules": ["knowledge", "page_awareness", "product_recommendation", "comparison", "cart", "checkout", "payment", "receipt", "order_lookup", "post_purchase", "handoff", "analytics"],
+      "common_integrations": ["Shopify-or-WooCommerce-or-Medusa", "payment-gateway", "Postmark"]
+    },
+    "professional_services": {
+      "label": "Professional Services / B2B",
+      "default_environment": "business",
+      "recommended_presence": "voice",
+      "recommended_capability": "act",
+      "pages": ["home", "services", "industries", "case-studies", "team", "book-a-call", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "lead_qualification", "booking", "crm", "transactional_email", "handoff", "analytics"],
+      "common_integrations": ["CRM", "Cal.com", "Postmark"]
+    },
+    "education": {
+      "label": "Education / Courses",
+      "default_environment": "business",
+      "recommended_presence": "voice",
+      "recommended_capability": "act",
+      "pages": ["home", "programs", "program-detail", "instructors", "admissions-or-enrollment", "faq", "contact"],
+      "modules": ["knowledge", "page_awareness", "program_matching", "lead_capture", "booking", "transactional_email", "handoff", "analytics"],
+      "common_integrations": ["CRM", "calendar", "Postmark", "LMS-if-existing"]
+    }
+  },
+  "environment_definitions": {
+    "existing_site": "Client already has a suitable production website. Archava is embedded and instrumented; remediation beyond a standard embed is separately scoped.",
+    "landing": "One conversion-focused primary page plus legal/privacy essentials and lightweight content management where needed.",
+    "business": "Approximately 2-8 primary marketing/content pages with CMS, forms, SEO foundations, analytics, and reusable design system.",
+    "commerce_booking": "A conversion environment centered on catalog, product/service detail, booking or commerce flow, admin/content management, and transaction-ready integration points.",
+    "custom_web_app": "Authenticated users, dashboards, multi-role workflows, custom data models, or application behavior beyond a standard marketing/commerce/booking environment.",
+    "enterprise_system": "Complex multi-system, multi-entity, regulated, legacy-integrated, or dedicated-infrastructure implementation."
+  },
+  "presence_definitions": {
+    "chat": "Text-based Archava with full Archava knowledge, page awareness, context, recommendations, supported actions, handoff, and analytics.",
+    "voice": "Chat capabilities plus low-latency realtime spoken conversation and interruption/turn-taking.",
+    "human": "Voice capabilities plus realtime human-looking avatar embodiment with graceful fallback to voice/chat."
+  },
+  "capability_definitions": {
+    "assist": "Understand, answer, recommend, compare, navigate, capture leads, and hand off. No external state-changing business transaction is required.",
+    "act": "Assist plus approved non-payment state-changing actions such as booking, form submission, CRM writes, sending transactional communications, or standard API actions.",
+    "transact": "Act plus cart/order/checkout/payment/confirmation/receipt/post-purchase transaction orchestration.",
+    "enterprise": "Complex ERP/legacy/multi-system workflows, dedicated infrastructure, advanced compliance, or business-critical custom orchestration."
+  }
+}

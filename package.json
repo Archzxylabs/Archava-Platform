@@ -1,0 +1,40 @@
+{
+  "name": "archava-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Archava platform: solution configurator, deterministic pricing engine, tenant-scoped knowledge, and canonical chat interface.",
+  "type": "module",
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "build:web": "pnpm --filter @archava/web build",
+    "dev": "pnpm --filter @archava/web dev",
+    "start": "pnpm --filter @archava/web start",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm typecheck:web",
+    "typecheck:web": "pnpm --filter @archava/web exec tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --reporter=default",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "configurator": "node --experimental-strip-types tools/configurator/src/cli.ts",
+    "verify": "node tools/scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.37.0",
+    "@types/node": "24.9.1",
+    "@vitest/coverage-v8": "3.2.7",
+    "eslint": "9.37.0",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "3.2.7",
+    "zod": "4.1.12"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "effective_date": "2026-09-22",
+  "currency_rounding": {
+    "GLOBAL": 50,
+    "ID": 100000
+  },
+  "tax_policy": "Prices exclude applicable taxes/VAT/PPN and third-party transaction fees unless explicitly stated.",
+  "regions": {
+    "GLOBAL": {
+      "currency": "USD",
+      "label": "Global",
+      "presence": {
+        "chat": {"setup": 2000, "monthly": 249, "included_usage": {"unit": "active_conversation", "quantity": 1000}, "overage": {"unit": "active_conversation", "price": 0.10}},
+        "voice": {"setup": 3500, "monthly": 399, "included_usage": {"unit": "realtime_minute", "quantity": 500}, "overage": {"unit": "realtime_minute", "price": 0.10}},
+        "human": {"setup": 5500, "monthly": 599, "included_usage": {"unit": "realtime_human_minute", "quantity": 500}, "overage": {"unit": "realtime_human_minute", "price": 0.15}}
+      },
+      "capability": {
+        "assist": {"setup": 0, "monthly": 0, "included_standard_integrations": 0},
+        "act": {"setup": 1500, "monthly": 149, "included_standard_integrations": 1},
+        "transact": {"setup": 3000, "monthly": 299, "included_standard_integrations": 2},
+        "enterprise": {"custom": true}
+      },
+      "environment": {
+        "existing_site": {"setup": 0, "monthly": 0, "note": "One standard Archava embed is included in Presence setup. Existing-site remediation or non-standard integration is scoped separately."},
+        "landing": {"setup": 1500, "monthly": 0},
+        "business": {"setup": 3000, "monthly": 0},
+        "commerce_booking": {"setup": 5000, "monthly": 0},
+        "custom_web_app": {"setup_from": 8000, "monthly": 0, "custom": true},
+        "enterprise_system": {"custom": true}
+      },
+      "integration": {
+        "standard": {"setup": 750},
+        "custom": {"setup_from": 1500},
+        "advanced": {"setup_from": 3000},
+        "enterprise": {"custom": true}
+      },
+      "design_addons": {
+        "custom_visual_direction": {"setup": 1500},
+        "advanced_motion_3d": {"setup_from": 2500},
+        "premium_avatar_provider": {"custom": true}
+      },
+      "support_addons": {
+        "standard": {"monthly": 0},
+        "priority": {"monthly": 199},
+        "dedicated_sla": {"custom": true}
+      }
+    },
+    "ID": {
+      "currency": "IDR",
+      "label": "Indonesia",
+      "presence": {
+        "chat": {"setup": 6900000, "monthly": 1490000, "included_usage": {"unit": "active_conversation", "quantity": 1000}, "overage": {"unit": "active_conversation", "price": 500}},
+        "voice": {"setup": 10900000, "monthly": 2490000, "included_usage": {"unit": "realtime_minute", "quantity": 500}, "overage": {"unit": "realtime_minute", "price": 1000}},
+        "human": {"setup": 14900000, "monthly": 3490000, "included_usage": {"unit": "realtime_human_minute", "quantity": 500}, "overage": {"unit": "realtime_human_minute", "price": 1500}}
+      },
+      "capability": {
+        "assist": {"setup": 0, "monthly": 0, "included_standard_integrations": 0},
+        "act": {"setup": 4900000, "monthly": 750000, "included_standard_integrations": 1},
+        "transact": {"setup": 9900000, "monthly": 1500000, "included_standard_integrations": 2},
+        "enterprise": {"custom": true}
+      },
+      "environment": {
+        "existing_site": {"setup": 0, "monthly": 0, "note": "One standard Archava embed is included in Presence setup. Existing-site remediation or non-standard integration is scoped separately."},
+        "landing": {"setup": 4900000, "monthly": 0},
+        "business": {"setup": 8900000, "monthly": 0},
+        "commerce_booking": {"setup": 14900000, "monthly": 0},
+        "custom_web_app": {"setup_from": 24900000, "monthly": 0, "custom": true},
+        "enterprise_system": {"custom": true}
+      },
+      "integration": {
+        "standard": {"setup": 2500000},
+        "custom": {"setup_from": 5000000},
+        "advanced": {"setup_from": 10000000},
+        "enterprise": {"custom": true}
+      },
+      "design_addons": {
+        "custom_visual_direction": {"setup": 5000000},
+        "advanced_motion_3d": {"setup_from": 8000000},
+        "premium_avatar_provider": {"custom": true}
+      },
+      "support_addons": {
+        "standard": {"monthly": 0},
+        "priority": {"monthly": 1500000},
+        "dedicated_sla": {"custom": true}
+      }
+    }
+  },
+  "discount_rules": {
+    "two_core_components_setup_discount_pct": 5,
+    "three_core_components_setup_discount_pct": 10,
+    "core_components": ["presence", "environment_paid", "capability_paid"],
+    "annual_recurring_prepay_discount_pct": 10,
+    "discount_exclusions": ["usage", "overage", "integrations", "third_party_pass_through", "tax", "custom_engineering", "enterprise"],
+    "agent_max_discretionary_discount_pct": 0,
+    "human_approval_floor_pct_of_list_setup": 80,
+    "rule": "The agent may only apply automatic bundle and annual-prepay discounts. Any other discount requires explicit human approval. Reduce scope before reducing price."
+  },
+  "usage_definitions": {
+    "active_conversation": "A customer session with at least one substantive Archava response, ending after 30 minutes of inactivity. Greetings-only sessions are not billable usage.",
+    "realtime_minute": "One minute of active realtime voice session, metered to the nearest provider-supported increment.",
+    "realtime_human_minute": "One minute with realtime avatar rendering enabled. If the avatar falls back to voice-only, the voice meter applies for that fallback period when technically measurable."
+  },
+  "commercial_rules": {
+    "presence_setup_includes": ["one tenant/client configuration", "one standard embed target", "brand adaptation", "baseline knowledge ingestion", "page awareness instrumentation", "analytics events", "standard deployment configuration"],
+    "assist_includes": ["Q&A", "product/service knowledge", "page awareness", "recommendations", "comparisons", "navigation", "lead capture", "human handoff", "baseline analytics"],
+    "act_includes": ["Assist", "form submission", "appointment/booking actions", "transactional email", "CRM write actions", "standard external API actions"],
+    "transact_includes": ["Act", "catalog/cart actions", "checkout orchestration", "payment initiation", "payment-status handling", "order/booking confirmation", "receipt/transactional email", "post-purchase lookup and supported transaction actions"],
+    "standard_integration_examples": ["Postmark", "Cal.com", "Midtrans", "Xendit", "Stripe", "Shopify", "WooCommerce", "HubSpot", "Pipedrive"],
+    "custom_integration_definition": "A documented REST/GraphQL/API integration not already supported by an Archava standard adapter, or a materially customized implementation of a standard adapter.",
+    "advanced_integration_definition": "Legacy/undocumented/on-prem systems, custom SSO/auth, complex data migration, ERP integration, bidirectional synchronization, or workflows spanning multiple external systems.",
+    "third_party_fees": "Payment gateway MDR/transaction fees, premium avatar vendors, telephony/SMS/WhatsApp fees, external SaaS licenses, and extraordinary model usage are paid by the client or passed through as separately disclosed charges.",
+    "regional_pricebook_rule": "Use ID pricing when the contracting/billing entity and primary commercial delivery market are Indonesia, or when ARCHZXY explicitly approves the Indonesia pricebook. Otherwise use GLOBAL. Never convert GLOBAL prices to IDR as a substitute for the Indonesia pricebook.",
+    "quote_validity_days": 14
+  }
+}
