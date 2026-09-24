@@ -23,9 +23,21 @@
  *   exactly once in the codebase and the store never holds a second copy of the
  *   wording that could drift from the config.
  *
- * The content is Bahasa Indonesia, because that is the tenant's
- * `primaryLanguage`: retrieval is lexical, and an English FAQ would score
- * nothing against the questions this demo is asked.
+ * Every document is published in both of the tenant's languages. The visitor
+ * who arrives on this page is not necessarily the person who reads
+ * `primaryLanguage`: the demo is opened in English at least as often as it is in
+ * Indonesian, and retrieval here is lexical, so a one-language corpus does not
+ * score low — it scores *nothing*. A visitor asking what the cancellation policy
+ * is in English would then be told the property published nothing, which is
+ * false, and the turn would report a knowledge gap about a question the tenant
+ * answers on its own website. The siblings carry the same wording in their own
+ * language; they are separate documents rather than two languages side by side
+ * in one, because the store stamps provenance per document and a citation should
+ * name the language that was actually retrieved.
+ *
+ * This is the one place the corpus is deliberately non-minimal, and it is the
+ * minimum that keeps the demo honest rather than a bilingual feature: seven
+ * subjects, two languages, no third.
  */
 
 import type { ClientConfig, KnowledgeSource } from '@archava/config'
@@ -106,6 +118,76 @@ export const referenceKnowledgeInputs = [
       'Tim reservasi dapat dihubungi setiap hari dari pukul 08.00 sampai 20.00 waktu setempat ' +
       'melalui telepon 0274-555-0100 atau email reservasi@rumahaman.test. ' +
       'Permintaan khusus seperti lantai tertentu atau kedatangan larut malam dapat dicatat di reservasi.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'check-in-and-check-out',
+    kind: 'faq',
+    title: 'Check-in and check-out',
+    content:
+      'Check-in opens at 2pm and check-out is until 12 noon. ' +
+      'Guests arriving early can wait in the lobby with a welcome tea. ' +
+      'Room keys are handed over at the front desk once the guest form is completed.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'breakfast',
+    kind: 'faq',
+    title: 'Breakfast',
+    content:
+      'Breakfast is served from 6.30am to 10am at the Morning Restaurant. ' +
+      'The menu is a buffet with traditional rice, vegetables, local fruit, bread, coffee, and tea. ' +
+      'Breakfast is not automatically included with every room type; staff will confirm on arrival.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'cancellation-policy',
+    kind: 'policy',
+    title: 'Cancellation policy',
+    content:
+      'Cancellation is free up to 7 days before the arrival date. ' +
+      'Cancelling inside those 7 days incurs a deduction of one night from the stay. ' +
+      'Changing the arrival date follows the same rules as a cancellation.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'resort-facilities',
+    kind: 'service',
+    title: 'Resort facilities',
+    content:
+      'Resort facilities include the main swimming pool facing the valley, the spa, the yoga pavilion, ' +
+      'and a light trekking path through the spice garden. Guests can use the bicycles by themselves ' +
+      'around the lobby area. Pool towels can be collected from the hut beside the pool.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'location-access',
+    kind: 'documentation',
+    title: 'Location and access',
+    content:
+      'The resort is about 40 minutes from the main airport and 15 minutes from the city centre. ' +
+      'Airport pickup can be arranged through the reservations team before arrival. ' +
+      'Full directions are sent together with the confirmation email.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'children-and-extra-beds-policy',
+    kind: 'policy',
+    title: 'Children and extra beds policy',
+    content:
+      'Children under 5 stay with their parents without occupying an extra bed. ' +
+      'An extra bed for a child over 5 can be arranged at the front desk on arrival. ' +
+      'Each room records the number of guests it can hold on the room description page.',
+    updatedAt: '2026-09-18',
+  },
+  {
+    id: 'reservation-contact',
+    kind: 'service',
+    title: 'Reservation contact',
+    content:
+      'The reservations team can be reached every day from 8am to 8pm local time ' +
+      'by phone on +62 274 555 010 or by email at reservations@rumahaman.test. ' +
+      'Special requests such as a particular floor or a late-night arrival can be noted on the reservation.',
     updatedAt: '2026-09-18',
   },
 ] as const satisfies readonly KnowledgeSource[]

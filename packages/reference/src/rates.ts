@@ -250,7 +250,10 @@ export function nightlyRate(unitId: string, night: string): NightlyRate | undefi
 }
 
 /** Availability for one unit on one night. */
-export function nightlyAvailability(unitId: string, night: string): NightlyAvailability | undefined {
+export function nightlyAvailability(
+  unitId: string,
+  night: string,
+): NightlyAvailability | undefined {
   const built = ROOMS_BUILT[unitId]
   if (built === undefined || !isReferenceNight(night)) return undefined
   const closed = (CLOSED_NIGHTS[unitId] ?? []).includes(night)
@@ -408,15 +411,23 @@ const SNAPSHOTS: Readonly<Record<string, () => Readonly<Record<string, unknown>>
  * genuinely answered. A subject it does not own is absent from the record, not
  * answered with a shrug: absence is what makes `basis: 'none'` and the §27
  * knowledge gap fire.
+ *
+ * `async` even though the answer is available immediately, and that is the
+ * point: the port's contract is a promise because the system a real tenant
+ * points it at answers over the network. An implementation that may return
+ * synchronously is one a caller can accidentally read without awaiting, so this
+ * one keeps the interface's shape rather than narrowing it.
  */
 export const referenceTruth: StructuredTruthPort = {
-  resolve: (subjects: readonly StructuredTruthSubject[]): Readonly<Record<string, unknown>> => {
+  resolve: (
+    subjects: readonly StructuredTruthSubject[],
+  ): Promise<Readonly<Record<string, unknown>>> => {
     const answered: Record<string, unknown> = {}
     for (const subject of subjects) {
       const snapshot = SNAPSHOTS[subject]
       if (snapshot === undefined) continue
       answered[subject] = snapshot()
     }
-    return answered
+    return Promise.resolve(answered)
   },
 }

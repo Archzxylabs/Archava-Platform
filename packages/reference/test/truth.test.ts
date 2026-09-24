@@ -18,35 +18,36 @@ import {
  * reachable at all.
  */
 describe('referenceTruth port', () => {
-  it('answers the subjects a resort would own', () => {
+  it('answers the subjects a resort would own', async () => {
     expect([...TRUTH_SUBJECTS_ANSWERED].sort()).toEqual(['availability', 'price', 'stock'])
-    expect(Object.keys(referenceTruth.resolve(TRUTH_SUBJECTS_ANSWERED)).sort()).toEqual([
+    expect(Object.keys(await referenceTruth.resolve(TRUTH_SUBJECTS_ANSWERED)).sort()).toEqual([
       'availability',
       'price',
       'stock',
     ])
   })
 
-  it('says nothing about a subject it does not own', () => {
+  it('says nothing about a subject it does not own', async () => {
     // A port sees subject names only — never the utterance — so answering "my
     // booking" from a shared fixture would hand every visitor the demo's own
     // reference codes. Absence is the honest answer, not a failure.
     for (const subject of UNANSWERED_SUBJECTS) {
-      expect(Object.keys(referenceTruth.resolve([subject])), `"${subject}" was answered`).toEqual(
-        [],
-      )
+      expect(
+        Object.keys(await referenceTruth.resolve([subject])),
+        `"${subject}" was answered`,
+      ).toEqual([])
     }
-    expect(Object.keys(referenceTruth.resolve(UNANSWERED_SUBJECTS))).toEqual([])
+    expect(Object.keys(await referenceTruth.resolve(UNANSWERED_SUBJECTS))).toEqual([])
   })
 
-  it('answers each subject independently, so asking for one does not imply the others', () => {
-    expect(Object.keys(referenceTruth.resolve(['price']))).toEqual(['price'])
-    expect(Object.keys(referenceTruth.resolve(['stock']))).toEqual(['stock'])
-    expect(Object.keys(referenceTruth.resolve(['availability']))).toEqual(['availability'])
+  it('answers each subject independently, so asking for one does not imply the others', async () => {
+    expect(Object.keys(await referenceTruth.resolve(['price']))).toEqual(['price'])
+    expect(Object.keys(await referenceTruth.resolve(['stock']))).toEqual(['stock'])
+    expect(Object.keys(await referenceTruth.resolve(['availability']))).toEqual(['availability'])
   })
 
-  it('quotes the same prices the fixtures state, rather than restating them', () => {
-    const price = referenceTruth.resolve(['price']).price as {
+  it('quotes the same prices the fixtures state, rather than restating them', async () => {
+    const price = (await referenceTruth.resolve(['price'])).price as {
       currency: string
       nights: ReadonlyArray<{ unitId: string; night: string; amountMinor: number }>
       weekendUpliftPercent: number
@@ -62,15 +63,15 @@ describe('referenceTruth port', () => {
     expect(price.nights).toHaveLength(24)
   })
 
-  it('reports availability for the window it sells, so the port can be shown to a visitor', () => {
-    const availability = referenceTruth.resolve(['availability']).availability as {
+  it('reports availability for the window it sells, so the port can be shown to a visitor', async () => {
+    const availability = (await referenceTruth.resolve(['availability'])).availability as {
       bookable: ReadonlyArray<{ unitId: string }>
     }
     expect(availability.bookable.map((stay) => stay.unitId)).toEqual(['deluxe-valley'])
   })
 
-  it('reports how many rooms of each type the resort actually has', () => {
-    const stock = referenceTruth.resolve(['stock']).stock as {
+  it('reports how many rooms of each type the resort actually has', async () => {
+    const stock = (await referenceTruth.resolve(['stock'])).stock as {
       units: ReadonlyArray<{ unitId: string; roomsBuilt: number }>
     }
     expect(Object.fromEntries(stock.units.map((unit) => [unit.unitId, unit.roomsBuilt]))).toEqual({
@@ -81,10 +82,10 @@ describe('referenceTruth port', () => {
     })
   })
 
-  it('leaves a requested-but-unowned subject absent, so the §27 gap still fires', () => {
+  it('leaves a requested-but-unowned subject absent, so the §27 gap still fires', async () => {
     const mixed: readonly StructuredTruthSubject[] = ['price', 'booking_status']
     // Non-empty, so authoritative for what it holds — silent on what it does
     // not, so the gap is still reported rather than papered over.
-    expect(Object.keys(referenceTruth.resolve(mixed))).toEqual(['price'])
+    expect(Object.keys(await referenceTruth.resolve(mixed))).toEqual(['price'])
   })
 })

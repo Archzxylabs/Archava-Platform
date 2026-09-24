@@ -123,6 +123,72 @@ function pageEntities(
 function literal(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
+/**
+ * Phrases that ask what the page is showing, rather than ask for something
+ * that is on it.
+ *
+ * These are asked as whole phrases for a reason. "What am I looking at?" is a
+ * request for the page's inventory; "what can I book this week?" is a question
+ * about availability that begins with the same two words, and "what can I see
+ * for breakfast?" is a question about amenities that begins with the same four.
+ * A pattern loose enough to catch all three would answer the second with a list
+ * of room names — the answer to a question nobody asked. Each phrase below is a
+ * question about the page, and only a question about the page: which is why the
+ * see-the-page phrasings name the page or point here rather than leaving the
+ * object of "see" to be decided later.
+ */
+const PAGE_QUESTION_PHRASES: readonly string[] = [
+  'what am i looking at',
+  'what is on this page',
+  "what's on this page",
+  'whats on this page',
+  'what can i see here',
+  'what can i see on this page',
+  'what is this page',
+  'what are these',
+  'what are those',
+  'describe this page',
+  'describe the page',
+  'what does this page show',
+  'apa yang ada di halaman ini',
+  'ini halaman apa',
+]
+/** Whether an utterance asks what the page is showing. */
+function asksAboutPage(utterance: string): boolean {
+  const text = utterance.toLowerCase().replace(/\s+/g, ' ').trim()
+  return PAGE_QUESTION_PHRASES.some((phrase) => text.includes(phrase))
+}
+/** The section heading the host set, or `null` when it set none. */
+function sectionOf(context: unknown): string | null {
+  const section = (context as { readonly section?: unknown } | null)?.section
+  return typeof section === 'string' && section.trim() !== '' ? section.trim() : null
+}
+/**
+ * What the page is showing, in a sentence — or `null` when it shows nothing.
+ *
+ * The answer is built from the projection the turn already masked, so it goes
+ * through `pageEntities` like the action request does: a brain that reached past
+ * the §16 boundary for the graph behind it could describe a page the visitor is
+ * not on. The section heading supplies the noun, because the page's own word for
+ * what these things are is the only one that is not a guess — the projection
+ * carries a kind, but a host that sets no `data-archava-kind` reports
+ * `unknown`, and "4 unknowns" is not an answer.
+ *
+ * `null` for an empty page rather than an empty list, so the inner brain's reply
+ * stands instead of being replaced by a sentence about nothing.
+ */
+function describePage(context: unknown): string | null {
+  const visible = pageEntities(context)
+  if (visible.length === 0) return null
+  const names = visible.map((entity) => entity.name)
+  const listed =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  const section = sectionOf(context)
+  const subject = section === null ? 'This page' : `The ${section} section`
+  return `${subject} is showing ${names.length}: ${listed}.`
+}
 
 /**
  * The entities the utterance names, matched against the page.
@@ -262,6 +328,15 @@ export class ReferenceBrain implements BrainProvider {
 
   async reply(request: BrainTurn): Promise<BrainReply> {
     const reply = await this.inner.reply(request)
+    // A question about the page is answered from the page, and answered here
+    // rather than left to the inner brain: a scripted brain handed the corpus
+    // will answer "What am I looking at?" from whichever policy chunk happens to
+    // score, which is a real answer to a question nobody asked. It also asks for
+    // no action — a question about the page is not a request to change it.
+    if (asksAboutPage(request.utterance)) {
+      const page = describePage(request.context)
+      if (page !== null) return { ...reply, text: page }
+    }
     const action = requestAction(request.utterance, request.context)
     return spoken(action === null ? reply : { ...reply, requestedActions: [action] }, request)
   }

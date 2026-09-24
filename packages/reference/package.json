@@ -6,7 +6,9 @@
   "description": "The reference dataset: one tenant's units, rates, availability, and knowledge, in the platform's own validated shapes.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": {},
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

@@ -77,6 +77,11 @@ describe('reference tenant', () => {
   })
 
   it('publishes the knowledge sources the corpus was authored as', () => {
+    // Every subject the corpus covers, in both languages. The Indonesian edition
+    // is the original seven; the English siblings exist because retrieval is
+    // lexical, and a one-language corpus scores *nothing* against the other
+    // language rather than scoring low. `packages/reference/test/knowledge.test.ts`
+    // carries the recall regression that keeps both sets answering.
     expect(referenceKnowledgeSources.map((source) => source.id)).toEqual([
       'check-in-dan-check-out',
       'sarapan-pagi',
@@ -85,6 +90,13 @@ describe('reference tenant', () => {
       'akses-lokasi',
       'kebijakan-anak-dan-tempat-tidur-ekstra',
       'kontak-reservasi',
+      'check-in-and-check-out',
+      'breakfast',
+      'cancellation-policy',
+      'resort-facilities',
+      'location-access',
+      'children-and-extra-beds-policy',
+      'reservation-contact',
     ])
   })
 

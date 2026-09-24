@@ -91,3 +91,123 @@ describe('reference knowledge corpus', () => {
     expect(toKnowledgeDocuments([], REFERENCE_TENANT_ID)).toEqual([])
   })
 })
+
+/**
+ * The corpus is bilingual, and this is why.
+ *
+ * Retrieval is lexical. A visitor who arrives on the page and asks "what is your
+ * cancellation policy?" in English meets an Indonesian-only corpus with zero
+ * token overlap, which is not a low score — it is *no* score. The turn then
+ * reports `basis: 'none'`, declares a knowledge gap, and tells the visitor the
+ * property published nothing about a policy that is sitting right there in the
+ * store. §17's live-truth half is untouched by a second language; the half that
+ * breaks without one is its other side, that published prose *does* answer
+ * policy questions — in whatever language the visitor asks in.
+ *
+ * So each subject is published in both languages, and what follows is the
+ * regression: an English question reaches the English edition, an Indonesian
+ * question keeps reaching the Indonesian one, and a regression in either
+ * direction is a visitor being told the tenant is silent in their language.
+ */
+
+/** Every subject the tenant publishes, as its Indonesian edition and its English one. */
+const SUBJECTS: readonly {
+  readonly subject: string
+  readonly id: readonly [string, string]
+  readonly indonesianUtterance: string
+  readonly englishUtterance: string
+}[] = [
+  {
+    subject: 'cancellation policy',
+    id: ['kebijakan-pembatalan', 'cancellation-policy'],
+    indonesianUtterance: 'apa kebijakan pembatalan?',
+    englishUtterance: 'what is your cancellation policy?',
+  },
+  {
+    subject: 'check-in and check-out',
+    id: ['check-in-dan-check-out', 'check-in-and-check-out'],
+    indonesianUtterance: 'jam berapa check in dan check out?',
+    englishUtterance: 'what time can I check in?',
+  },
+  {
+    subject: 'breakfast',
+    id: ['sarapan-pagi', 'breakfast'],
+    indonesianUtterance: 'jam berapa sarapan pagi disajikan?',
+    englishUtterance: 'when is breakfast served?',
+  },
+  {
+    subject: 'resort facilities',
+    id: ['fasilitas-resort', 'resort-facilities'],
+    indonesianUtterance: 'apa saja fasilitas resort?',
+    englishUtterance: 'what facilities does the resort have?',
+  },
+  {
+    subject: 'location and access',
+    id: ['akses-lokasi', 'location-access'],
+    indonesianUtterance: 'berapa jarak resort dari bandara?',
+    englishUtterance: 'how far is the resort from the airport?',
+  },
+  {
+    subject: 'children and extra beds',
+    id: ['kebijakan-anak-dan-tempat-tidur-ekstra', 'children-and-extra-beds-policy'],
+    indonesianUtterance: 'apa kebijakan anak dan tempat tidur ekstra?',
+    englishUtterance: 'what is your children and extra beds policy?',
+  },
+  {
+    subject: 'reservations contact',
+    id: ['kontak-reservasi', 'reservation-contact'],
+    indonesianUtterance: 'bagaimana menghubungi tim reservasi?',
+    englishUtterance:
+      'what phone number or email address should I use to reach the reservations team?',
+  },
+]
+
+const publishedIds = referenceKnowledgeInputs.map((source) => source.id)
+const store = buildKnowledgeStore(referenceConfig)
+
+describe('the corpus answers in the language it was asked in', () => {
+  it('publishes both languages of every subject', () => {
+    // Asserted on its own so the two recall tests below can assume it: a subject
+    // missing a language is a visitor who is silently told the tenant has
+    // nothing to say, and that is the whole defect being guarded here.
+    for (const { subject, id } of SUBJECTS) {
+      expect(id, `"${subject}" is listed with one language only`).toHaveLength(2)
+      for (const documentId of id) {
+        expect(publishedIds, `${documentId} (${subject})`).toContain(documentId)
+      }
+    }
+  })
+
+  it('reaches the English edition of an English question', () => {
+    for (const { subject, id, englishUtterance } of SUBJECTS) {
+      const hits = store.search(englishUtterance, REFERENCE_TENANT_ID, 3)
+      expect(hits.length, `${subject}: "${englishUtterance}"`).toBeGreaterThan(0)
+      expect(hits[0]?.documentId, `${subject}: "${englishUtterance}"`).toBe(id[1])
+    }
+  })
+
+  it('keeps reaching the Indonesian edition of an Indonesian question', () => {
+    // The pre-existing behaviour. A second language must not quietly replace the
+    // first one's answers, and the only way to be sure is to say both.
+    for (const { subject, id, indonesianUtterance } of SUBJECTS) {
+      const hits = store.search(indonesianUtterance, REFERENCE_TENANT_ID, 3)
+      expect(hits.length, `${subject}: "${indonesianUtterance}"`).toBeGreaterThan(0)
+      expect(hits[0]?.documentId, `${subject}: "${indonesianUtterance}"`).toBe(id[0])
+    }
+  })
+
+  it('never lets a second language become a second place to name a rate', () => {
+    // The no-prices rule that the Indonesian corpus was authored under applies
+    // to the English editions too: a translation that names a currency amount
+    // would reintroduce the exact failure §17 forbids, and only in one language.
+    for (const { subject, id } of SUBJECTS) {
+      for (const documentId of id) {
+        const source = referenceKnowledgeInputs.find((candidate) => candidate.id === documentId)
+        expect(source?.content, documentId).toBeDefined()
+        expect(source?.content, `${documentId} (${subject}) names a rate`).not.toMatch(
+          /(?:IDR|Rp|USD|\$|€|£)\s?[\d.,]+|[\d.,]+\s?(?:per night|per malam|a night|semalam|sehari)|\brupiah\b/i,
+        )
+      }
+    }
+  })
+})

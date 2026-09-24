@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BrainReply, BrainTurn } from '@archava/adapters'
+import type { BrainProvider, BrainReply, BrainTurn } from '@archava/adapters'
 import { ReferenceBrain, requestAction } from '../src/brain.js'
 
 /**
@@ -114,8 +114,8 @@ describe('ReferenceBrain decorator', () => {
         providerId: 'probe',
         model: 'probe-model',
         health: { ready: true, reason: null },
-        async reply(): Promise<BrainReply> {
-          return answering('Two suites are available.')
+        reply(): Promise<BrainReply> {
+          return Promise.resolve(answering('Two suites are available.'))
         },
       },
       'reference',
@@ -133,8 +133,8 @@ describe('ReferenceBrain decorator', () => {
         providerId: 'probe',
         model: 'probe-model',
         health: { ready: true, reason: null },
-        async reply(): Promise<BrainReply> {
-          return answering('The Treetop Suite is 2.4m IDR a night.')
+        reply(): Promise<BrainReply> {
+          return Promise.resolve(answering('The Treetop Suite is 2.4m IDR a night.'))
         },
       },
       'reference',
@@ -142,5 +142,116 @@ describe('ReferenceBrain decorator', () => {
     const reply = await brain.reply({ ...TURN, utterance: 'what does the treetop cost?' })
     expect(reply.text).toBe('The Treetop Suite is 2.4m IDR a night.')
     expect(reply.requestedActions).toEqual([])
+  })
+})
+
+/**
+ * A question about the page, answered from the page.
+ *
+ * The E2E asked "What am I looking at?" and got an answer grounded in the
+ * check-in policy: a real sentence, about a subject nobody had asked about. The
+ * projection already hands the brain the visible entities and the section
+ * heading, so the answer was available and went unused. These assert that the
+ * decorator uses it — and, because the phrases are matched whole, that it does
+ * not start answering availability questions with a list of room names.
+ */
+describe('what the page is showing', () => {
+  /** A brain that says exactly what it was handed, and asks for nothing. */
+  function saying(text: string): BrainProvider {
+    return {
+      providerId: 'probe',
+      model: 'probe-model',
+      health: { ready: true, reason: null },
+      reply(): Promise<BrainReply> {
+        return Promise.resolve(answering(text))
+      },
+    }
+  }
+
+  function answering(text: string): BrainReply {
+    return { text, citations: [], requestedActions: [], deferToStructuredTruth: false }
+  }
+
+  const TURN: BrainTurn = {
+    tenantId: 'acme-hotels',
+    utterance: 'what am I looking at?',
+    locale: 'en',
+    context: {
+      section: 'Rooms',
+      entities: [
+        { id: 'garden-twin', name: 'Garden Twin Room', entityKind: 'unknown' },
+        { id: 'deluxe-valley', name: 'Deluxe Valley Room', entityKind: 'unknown' },
+      ],
+    },
+    grounding: [],
+    permittedActionIds: ['ui.highlight', 'ui.compare'],
+    structuredTruth: {},
+    knowledgeMode: 'retrieval',
+  }
+
+  /**
+   * A turn whose page context is a bare entity list, not a
+   * `{ section, entities }` record.
+   *
+   * The cast is the point of the helper. `BrainTurn.context` is typed as a
+   * record because that is what the projection sends, and `pageEntities` reads
+   * that record — but it also accepts a bare list, and a host that sent one
+   * used to reach the brain unlabelled. Pinning that branch means handing the
+   * brain a value the port's type does not describe, so the cast says so out
+   * loud rather than loosening the port's type to hide it.
+   */
+  function turnListing(...names: readonly string[]): BrainTurn {
+    return { ...TURN, context: pageWith(...names) as Readonly<Record<string, unknown>> }
+  }
+
+  it('names what the visitor is actually looking at', async () => {
+    const brain = new ReferenceBrain(saying('Our check-in is from 2pm.'), 'reference')
+    const reply = await brain.reply(TURN)
+    expect(reply.text).toBe(
+      'The Rooms section is showing 2: Garden Twin Room and Deluxe Valley Room.',
+    )
+  })
+
+  it('says "this page" when the host set no section heading', async () => {
+    const brain = new ReferenceBrain(saying('Our check-in is from 2pm.'), 'reference')
+    const reply = await brain.reply(turnListing('garden-twin', 'deluxe-valley'))
+    expect(reply.text).toBe('This page is showing 2: garden-twin and deluxe-valley.')
+  })
+
+  it('describes a single visible thing without a list', async () => {
+    const brain = new ReferenceBrain(saying('Our check-in is from 2pm.'), 'reference')
+    const reply = await brain.reply(turnListing('garden-twin'))
+    expect(reply.text).toBe('This page is showing 1: garden-twin.')
+  })
+
+  it('asks for no action, because a question is not a request', async () => {
+    const brain = new ReferenceBrain(saying('Our check-in is from 2pm.'), 'reference')
+    const reply = await brain.reply(TURN)
+    expect(reply.requestedActions).toEqual([])
+  })
+
+  it('leaves the inner reply standing when the page shows nothing', async () => {
+    const brain = new ReferenceBrain(saying('Our check-in is from 2pm.'), 'reference')
+    const reply = await brain.reply({ ...TURN, context: { section: 'Rooms', entities: [] } })
+    expect(reply.text).toBe('Our check-in is from 2pm.')
+  })
+
+  it.each([
+    'what can I book this week?',
+    'what can I see for breakfast?',
+    'how much is the garden twin?',
+    'what is your cancellation policy?',
+  ])('does not answer %j from the page', async (utterance) => {
+    const brain = new ReferenceBrain(saying('The inner brain answered this one.'), 'reference')
+    const reply = await brain.reply({ ...TURN, utterance })
+    expect(reply.text).toBe('The inner brain answered this one.')
+  })
+
+  it('understands the question in Indonesian too', async () => {
+    const brain = new ReferenceBrain(saying('Our check-in is from 2pm.'), 'reference')
+    const reply = await brain.reply({ ...TURN, utterance: 'ini halaman apa?' })
+    expect(reply.text).toBe(
+      'The Rooms section is showing 2: Garden Twin Room and Deluxe Valley Room.',
+    )
   })
 })
