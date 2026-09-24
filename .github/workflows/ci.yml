@@ -1,0 +1,61 @@
+name: CI
+
+# The gates a PR must clear before review, in the order they fail fastest.
+#
+# They mirror `package.json` one-for-one rather than adding a private second
+# opinion: "CI passes" has to mean the same thing as `pnpm verify` passing on a
+# laptop, or it means nothing at all.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # A new push supersedes the run it replaces, so a PR's status reflects its
+  # latest commit rather than the queue behind it.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Node version from .tool-versions
+        run: echo "NODE_VERSION=$(grep '^node ' .tool-versions | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Before anything that compiles. This one costs a second and catches a
+      # class of breakage the other gates structurally cannot see: vitest's
+      # alias table resolves an undeclared neighbour as happily as a declared
+      # one, so a missing workspace dependency passes `pnpm test` and fails
+      # later, somewhere with less context.
+      - name: Structure
+        run: pnpm structure
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
