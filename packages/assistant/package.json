@@ -17,7 +17,8 @@
     "@archava/adapters": "workspace:*",
     "@archava/config": "workspace:*",
     "@archava/core": "workspace:*",
-    "@archava/knowledge": "workspace:*"
+    "@archava/knowledge": "workspace:*",
+    "zod": "4.1.12"
   },
   "devDependencies": {
     "typescript": "5.9.3"
