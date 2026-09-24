@@ -52,7 +52,18 @@ const SUBJECT_KEYWORDS: Readonly<Record<StructuredTruthSubject, readonly string[
     'charges',
     'discount',
     'quote',
-    'how much',
+    // A bare 'how much' is not here. It answers a price question only when a
+    // copula follows it — "how much is the suite" — but it is equally how a
+    // visitor asks a quantity that the tenant publishes: "how much coffee is
+    // served at breakfast" is a menu question, and a bare 'how much' routes it
+    // to the price port, which then says it cannot answer. Each entry below is
+    // the question form, not the two words.
+    'how much is',
+    'how much are',
+    'how much does',
+    'how much do',
+    'how much for',
+    'how much would',
     'biaya',
     'harga',
   ],
@@ -150,6 +161,22 @@ const SUBJECT_KEYWORDS: Readonly<Record<StructuredTruthSubject, readonly string[
 /** Anything that looks like a question about this tenant's own live data. */
 const POSSESSIVE_PATTERN = /\b(my|our)\b/i
 
+/**
+ * A keyword as a word-bounded pattern.
+ *
+ * The matching used to be a plain substring test, which is wrong in both
+ * directions at once: `fee` matched inside "coffee", so a visitor asking how
+ * much coffee comes with breakfast was routed to the *price* port and told a
+ * live system holds the answer, when the tenant has just published the menu.
+ * The same collision hides the reverse — a visitor asking whether breakfast is
+ * included is not asking about a fee. A keyword is a claim about a *word* the
+ * visitor used, so it is matched as one.
+ */
+function keywordPattern(keyword: string): RegExp {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`)
+}
+
 /** Classify what a visitor question needs before any retrieval happens. */
 export function classifyKnowledgeNeed(query: string): KnowledgeClassification {
   const haystack = ` ${query
@@ -161,7 +188,7 @@ export function classifyKnowledgeNeed(query: string): KnowledgeClassification {
 
   for (const subject of STRUCTURED_TRUTH_SUBJECTS) {
     const keywords = SUBJECT_KEYWORDS[subject] ?? []
-    if (keywords.some((keyword) => haystack.includes(keyword))) {
+    if (keywords.some((keyword) => keywordPattern(keyword).test(haystack))) {
       matched.push(subject)
     }
   }

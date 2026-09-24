@@ -32,6 +32,23 @@ describe('structured truth vs retrieval', () => {
     }
   })
 
+  it('matches a keyword as a word, not as a substring of one', () => {
+    // "coffee" contains "fee". With substring matching, a visitor asking what
+    // comes with breakfast was routed to the price port and told a live system
+    // holds the answer — for a menu the tenant has already published. The same
+    // collision runs the other way: "included" is not a fee question.
+    expect(requiresStructuredTruth('is coffee included in breakfast?')).toBe(false)
+    expect(requiresStructuredTruth('how much coffee is served at breakfast?')).toBe(false)
+    expect(requiresStructuredTruth('what time is breakfast served?')).toBe(false)
+    // The boundary must not go so far as to stop hearing real money questions:
+    // a word that *is* the keyword is still that question.
+    expect(requiresStructuredTruth('what is the price of the deluxe suite?')).toBe(true)
+    expect(requiresStructuredTruth('is there a fee for an extra bed?')).toBe(true)
+    expect(classifyKnowledgeNeed('berapa biaya tambahan untuk kasur ekstra?').subjects).toContain(
+      'price',
+    )
+  })
+
   it('reports which subjects a question touched', () => {
     expect(classifyKnowledgeNeed('berapa harga kamar deluxe?').subjects).toContain('price')
     expect(classifyKnowledgeNeed('where is my parcel?').subjects).toContain('shipping_status')
