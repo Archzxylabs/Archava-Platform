@@ -25,7 +25,7 @@
     "configurator": "tsx tools/configurator/src/cli.ts",
     "structure": "node tools/scripts/structure.mjs",
     "e2e:home": "node tools/e2e/home.mjs",
-    "verify": "pnpm structure && node tools/scripts/verify.mjs"
+    "verify": "node tools/scripts/verify.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.37.0",

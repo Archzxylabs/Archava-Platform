@@ -9,10 +9,16 @@
  * the first thing to stop being true would be the claim that they are the same
  * run.
  *
- * Gates run in the order a change would break them: install, then the static
- * checks, then the ones that execute code. Install is special-cased to stop the
- * run early, because a failed install makes every later failure a symptom rather
- * than a finding.
+ * Gates run in the order a change would break them: install, then structure,
+ * then lint, then the ones that execute code. Install is special-cased to stop
+ * the run early, because a failed install makes every later failure a symptom
+ * rather than a finding.
+ *
+ * The list is the same list, in the same order, as `.github/workflows/ci.yml`,
+ * so "CI passed" and "`pnpm verify` passed" are one fact. Structure is a gate in
+ * this table rather than a prefix on the `verify` script precisely because of
+ * that: a check that runs outside the table is a check a laptop and CI can
+ * quietly disagree about.
  *
  * Usage: `pnpm verify` (or `node tools/scripts/verify.mjs`).
  * Exit code 0 means every gate passed; non-zero means at least one did not, and
@@ -31,6 +37,7 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 /** Every gate, in run order. `stopOnFailure` halts the rest of the run. */
 const GATES = [
   { name: 'install', args: ['install', '--frozen-lockfile'], stopOnFailure: true },
+  { name: 'structure', args: ['structure'] },
   { name: 'lint', args: ['lint'] },
   { name: 'typecheck', args: ['typecheck'] },
   { name: 'test', args: ['test'] },
