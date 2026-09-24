@@ -199,3 +199,101 @@ describe('ActionPolicy', () => {
     }
   })
 })
+
+/**
+ * The decline path.
+ *
+ * The defect this guards against is a gate with nowhere to put a refusal. A
+ * decline used to be flattened back into `confirmation_required` at the policy
+ * layer and dropped into a display-only notes array at the page layer, so the
+ * turn after a decline re-asked the same question — the visitor says no, and the
+ * next thing they hear is the same sentence.
+ */
+describe('a declined action', () => {
+  const policy = new ActionPolicy()
+  const DECLINE = {
+    ...BASE,
+    availableOnPage: true,
+  } as const
+
+  it('is denied as declined rather than asked again', () => {
+    const result = policy.evaluate({ ...DECLINE, declined: true })
+    expect(result.decision).toBe('denied')
+    if (result.decision !== 'denied') throw new Error('expected a denial')
+    expect(result.reason).toBe('declined_by_visitor')
+    // The message says what happened, and says it without the tenant's own
+    // customer data: a reason a visitor could be shown is a reason an audit
+    // log may carry.
+    expect(result.message).toContain('declined earlier in this session')
+  })
+
+  it('lets a confirmation in the same turn override the refusal', () => {
+    const first = policy.evaluate({ ...DECLINE })
+    expect(first.decision).toBe('confirmation_required')
+
+    const afterDecline = policy.evaluate({ ...DECLINE, declined: true })
+    expect(afterDecline.decision).toBe('denied')
+
+    // Changing one's mind has to be able to win. The confirmation is the same
+    // flag as a first-time confirmation, and the gate must let it override the
+    // earlier refusal in the same turn.
+    const reversed = policy.evaluate({ ...DECLINE, declined: true, confirmed: true })
+    expect(reversed.decision).toBe('allow')
+  })
+
+  it('sits behind the denials a decline cannot soften', () => {
+    // A declined action that also exceeds the capability is denied as such: the
+    // reason names the failure that matters to an operator diagnosing it, and
+    // `declined_by_visitor` is a later, narrower failure that only explains a
+    // refusal of an action the visitor was already entitled to be offered.
+    const overCapability = policy.evaluate({
+      ...DECLINE,
+      capability: 'assist',
+      declined: true,
+    })
+    expect(overCapability.decision).toBe('denied')
+    if (overCapability.decision !== 'denied') throw new Error('expected a denial')
+    expect(overCapability.reason).toBe('capability_insufficient')
+
+    // The same for an action the current page never offered.
+    const unavailable = policy.evaluate({
+      ...DECLINE,
+      availableOnPage: false,
+      declined: true,
+    })
+    expect(unavailable.decision).toBe('denied')
+    if (unavailable.decision !== 'denied') throw new Error('expected a denial')
+    expect(unavailable.reason).toBe('action_unavailable_on_page')
+  })
+
+  it('leaves the tool list alone, and stops the action at the gate instead', () => {
+    // `availableActionIds` answers what a session could do as a function of
+    // capability, role and page. A decline is session state, so folding it in
+    // would make the tool list move with the conversation — a different function
+    // wearing the same name. A declined action stays offered and is denied at the
+    // gate, which is the fail-closed shape.
+    const offered = policy.availableActionIds({
+      capability: 'act',
+      role: 'archava_assistant',
+    })
+    expect(offered).toContain('booking.create')
+
+    const result = policy.evaluate({ ...DECLINE, declined: true })
+    expect(result.decision).toBe('denied')
+    if (result.decision !== 'denied') throw new Error('expected a denial')
+    expect(result.reason).toBe('declined_by_visitor')
+  })
+
+  it('reads a decline from the session rather than from the registry', () => {
+    // The decline is a session fact, not a registry edit. The baseline
+    // `booking.create` still declares `confirmation: 'user_confirm'` and nothing
+    // else, and the decline reaches the gate as `declinedActionIds` without
+    // mutating a definition every other session shares.
+    const all = policy.availableActionIds({
+      capability: 'act',
+      role: 'archava_assistant',
+    })
+    expect(all).toContain('booking.create')
+    expect(policy.describe('booking.create').confirmation).toBe('user_confirm')
+  })
+})
