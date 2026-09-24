@@ -5,8 +5,18 @@ const engine = new PricingEngine()
 
 describe('regional isolation', () => {
   it('prices Indonesia presence independently from Global presence', () => {
-    const id = engine.quote({ region: 'ID', presence: 'chat', capability: 'assist', environment: 'landing' })
-    const global = engine.quote({ region: 'GLOBAL', presence: 'chat', capability: 'assist', environment: 'landing' })
+    const id = engine.quote({
+      region: 'ID',
+      presence: 'chat',
+      capability: 'assist',
+      environment: 'landing',
+    })
+    const global = engine.quote({
+      region: 'GLOBAL',
+      presence: 'chat',
+      capability: 'assist',
+      environment: 'landing',
+    })
 
     expect(id.currency).toBe('IDR')
     expect(global.currency).toBe('USD')
@@ -28,13 +38,28 @@ describe('regional isolation', () => {
 
   it('rejects an unknown region instead of guessing a pricebook', () => {
     expect(() =>
-      engine.quote({ region: 'XX' as never, presence: 'chat', capability: 'assist', environment: 'landing' }),
+      engine.quote({
+        region: 'XX' as never,
+        presence: 'chat',
+        capability: 'assist',
+        environment: 'landing',
+      }),
     ).toThrowError(/Unknown region/)
   })
 
   it('keeps Indonesia and Global capability tiers independent', () => {
-    const idAct = engine.quote({ region: 'ID', presence: 'chat', capability: 'act', environment: 'existing_site' })
-    const globalAct = engine.quote({ region: 'GLOBAL', presence: 'chat', capability: 'act', environment: 'existing_site' })
+    const idAct = engine.quote({
+      region: 'ID',
+      presence: 'chat',
+      capability: 'act',
+      environment: 'existing_site',
+    })
+    const globalAct = engine.quote({
+      region: 'GLOBAL',
+      presence: 'chat',
+      capability: 'act',
+      environment: 'existing_site',
+    })
 
     expect(idAct.monthlyBase).toBe(1_490_000 + 750_000)
     expect(globalAct.monthlyBase).toBe(249 + 149)
@@ -51,8 +76,18 @@ describe('tier ladders', () => {
 
   for (const tier of cases) {
     it(`prices ${tier.presence} presence in both pricebooks`, () => {
-      const id = engine.quote({ region: 'ID', presence: tier.presence, capability: 'assist', environment: 'existing_site' })
-      const global = engine.quote({ region: 'GLOBAL', presence: tier.presence, capability: 'assist', environment: 'existing_site' })
+      const id = engine.quote({
+        region: 'ID',
+        presence: tier.presence,
+        capability: 'assist',
+        environment: 'existing_site',
+      })
+      const global = engine.quote({
+        region: 'GLOBAL',
+        presence: tier.presence,
+        capability: 'assist',
+        environment: 'existing_site',
+      })
       expect(id.fixedCoreSetup).toBe(tier.id)
       expect(global.fixedCoreSetup).toBe(tier.global)
     })
@@ -66,10 +101,22 @@ describe('tier ladders', () => {
 
   for (const tier of capabilityCases) {
     it(`prices ${tier.capability} capability in both pricebooks`, () => {
-      const id = engine.quote({ region: 'ID', presence: 'chat', capability: tier.capability, environment: 'existing_site' })
-      const global = engine.quote({ region: 'GLOBAL', presence: 'chat', capability: tier.capability, environment: 'existing_site' })
+      const id = engine.quote({
+        region: 'ID',
+        presence: 'chat',
+        capability: tier.capability,
+        environment: 'existing_site',
+      })
+      const global = engine.quote({
+        region: 'GLOBAL',
+        presence: 'chat',
+        capability: tier.capability,
+        environment: 'existing_site',
+      })
       expect(id.coreComponents.find((c) => c.name === 'capability')?.setup ?? tier.id).toBe(tier.id)
-      expect(global.coreComponents.find((c) => c.name === 'capability')?.setup ?? tier.global).toBe(tier.global)
+      expect(global.coreComponents.find((c) => c.name === 'capability')?.setup ?? tier.global).toBe(
+        tier.global,
+      )
     })
   }
 })

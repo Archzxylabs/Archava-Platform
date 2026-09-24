@@ -423,79 +423,79 @@ ARCHZXY must maintain separate commercial pricebooks rather than FX-converting o
 
 #### Presence
 
-| Presence | Setup | Monthly platform | Included usage | Overage |
-|---|---:|---:|---:|---:|
-| Chat | $2,000 | $249/mo | 1,000 active conversations | $0.10/conversation |
-| Voice | $3,500 | $399/mo | 500 realtime minutes | $0.10/min |
-| Human | $5,500 | $599/mo | 500 realtime human minutes | $0.15/min |
+| Presence |  Setup | Monthly platform |             Included usage |            Overage |
+| -------- | -----: | ---------------: | -------------------------: | -----------------: |
+| Chat     | $2,000 |          $249/mo | 1,000 active conversations | $0.10/conversation |
+| Voice    | $3,500 |          $399/mo |       500 realtime minutes |          $0.10/min |
+| Human    | $5,500 |          $599/mo | 500 realtime human minutes |          $0.15/min |
 
 #### Capability
 
-| Capability | Setup | Monthly | Included Standard integrations |
-|---|---:|---:|---:|
-| Assist | Included | Included | 0 |
-| Act | +$1,500 | +$149/mo | 1 |
-| Transact | +$3,000 | +$299/mo | 2 |
-| Enterprise | Custom | Custom | Custom |
+| Capability |    Setup |  Monthly | Included Standard integrations |
+| ---------- | -------: | -------: | -----------------------------: |
+| Assist     | Included | Included |                              0 |
+| Act        |  +$1,500 | +$149/mo |                              1 |
+| Transact   |  +$3,000 | +$299/mo |                              2 |
+| Enterprise |   Custom |   Custom |                         Custom |
 
 #### Digital Environment
 
-| Environment | Setup |
-|---|---:|
-| Existing site | standard embed included in Presence setup |
-| Landing | $1,500 |
-| Business | $3,000 |
-| Commerce / Booking | $5,000 |
-| Custom Web App | from $8,000 |
-| Enterprise System | Custom |
+| Environment        |                                     Setup |
+| ------------------ | ----------------------------------------: |
+| Existing site      | standard embed included in Presence setup |
+| Landing            |                                    $1,500 |
+| Business           |                                    $3,000 |
+| Commerce / Booking |                                    $5,000 |
+| Custom Web App     |                               from $8,000 |
+| Enterprise System  |                                    Custom |
 
 #### Integration complexity
 
-| Type | Setup |
-|---|---:|
-| Standard | $750 |
-| Custom | from $1,500 |
-| Advanced | from $3,000 |
-| Enterprise | Custom |
+| Type       |       Setup |
+| ---------- | ----------: |
+| Standard   |        $750 |
+| Custom     | from $1,500 |
+| Advanced   | from $3,000 |
+| Enterprise |      Custom |
 
 ### 8.2 Indonesia pricebook — IDR
 
 #### Presence
 
-| Presence | Setup | Monthly platform | Included usage | Overage |
-|---|---:|---:|---:|---:|
-| Chat | Rp6.900.000 | Rp1.490.000/bln | 1.000 active conversations | Rp500/conversation |
-| Voice | Rp10.900.000 | Rp2.490.000/bln | 500 realtime minutes | Rp1.000/min |
-| Human | Rp14.900.000 | Rp3.490.000/bln | 500 realtime human minutes | Rp1.500/min |
+| Presence |        Setup | Monthly platform |             Included usage |            Overage |
+| -------- | -----------: | ---------------: | -------------------------: | -----------------: |
+| Chat     |  Rp6.900.000 |  Rp1.490.000/bln | 1.000 active conversations | Rp500/conversation |
+| Voice    | Rp10.900.000 |  Rp2.490.000/bln |       500 realtime minutes |        Rp1.000/min |
+| Human    | Rp14.900.000 |  Rp3.490.000/bln | 500 realtime human minutes |        Rp1.500/min |
 
 #### Capability
 
-| Capability | Setup | Monthly | Included Standard integrations |
-|---|---:|---:|---:|
-| Assist | Included | Included | 0 |
-| Act | +Rp4.900.000 | +Rp750.000/bln | 1 |
-| Transact | +Rp9.900.000 | +Rp1.500.000/bln | 2 |
-| Enterprise | Custom | Custom | Custom |
+| Capability |        Setup |          Monthly | Included Standard integrations |
+| ---------- | -----------: | ---------------: | -----------------------------: |
+| Assist     |     Included |         Included |                              0 |
+| Act        | +Rp4.900.000 |   +Rp750.000/bln |                              1 |
+| Transact   | +Rp9.900.000 | +Rp1.500.000/bln |                              2 |
+| Enterprise |       Custom |           Custom |                         Custom |
 
 #### Digital Environment
 
-| Environment | Setup |
-|---|---:|
-| Existing site | standard embed included in Presence setup |
-| Landing | Rp4.900.000 |
-| Business | Rp8.900.000 |
-| Commerce / Booking | Rp14.900.000 |
-| Custom Web App | from Rp24.900.000 |
-| Enterprise System | Custom |
+| Environment        |                                     Setup |
+| ------------------ | ----------------------------------------: |
+| Existing site      | standard embed included in Presence setup |
+| Landing            |                               Rp4.900.000 |
+| Business           |                               Rp8.900.000 |
+| Commerce / Booking |                              Rp14.900.000 |
+| Custom Web App     |                         from Rp24.900.000 |
+| Enterprise System  |                                    Custom |
 
 #### Integration complexity
 
-| Type | Setup |
-|---|---:|
-| Standard | Rp2.500.000 |
-| Custom | from Rp5.000.000 |
-| Advanced | from Rp10.000.000 |
-| Enterprise | Custom |
+| Type       |             Setup |
+| ---------- | ----------------: |
+| Standard   |       Rp2.500.000 |
+| Custom     |  from Rp5.000.000 |
+| Advanced   | from Rp10.000.000 |
+| Enterprise |            Custom |
 
 ### 8.3 Regional selection rule
 
@@ -1172,7 +1172,7 @@ Target API concept:
 ```html
 <script src="https://cdn.archava.example/sdk.js"></script>
 <script>
-  Archava.init({ clientId: "client_xyz" })
+  Archava.init({ clientId: 'client_xyz' })
 </script>
 ```
 

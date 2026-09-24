@@ -45,7 +45,9 @@ describe('pricebook loader', () => {
     // The schema accepts the number; the isolation invariant is asserted at the
     // engine level, where any drift from the published ID figures fails.
     const parsed = parsePricebook(JSON.stringify(tampered))
-    expect(parsed.regions.ID.presence.voice.setup).not.toBe(pricebook.regions.ID.presence.voice.setup)
+    expect(parsed.regions.ID.presence.voice.setup).not.toBe(
+      pricebook.regions.ID.presence.voice.setup,
+    )
   })
 
   it('fails closed on malformed JSON', () => {
@@ -55,34 +57,36 @@ describe('pricebook loader', () => {
   it('fails closed when a required region is missing', () => {
     const document = detachedDocument(loadPricebook())
     delete (document['regions'] as Record<string, unknown>)['ID']
-    expect(() => parsePricebook(JSON.stringify(document))).toThrowError(
-      /failed validation/,
-    )
+    expect(() => parsePricebook(JSON.stringify(document))).toThrowError(/failed validation/)
   })
 
   it('fails closed when a price is negative', () => {
     const tampered = detached(loadPricebook())
     tampered.regions.GLOBAL.presence.chat.setup = -1
-    expect(() => parsePricebook(JSON.stringify(tampered))).toThrowError(
-      /failed validation/,
-    )
+    expect(() => parsePricebook(JSON.stringify(tampered))).toThrowError(/failed validation/)
   })
 
   it('rejects a discretionary-discount rule other than zero', () => {
     const document = detachedDocument(loadPricebook())
     const rules = document['discount_rules'] as Record<string, number>
     rules['agent_max_discretionary_discount_pct'] = 5
-    expect(() => parsePricebook(JSON.stringify(document))).toThrowError(
-      /failed validation/,
-    )
+    expect(() => parsePricebook(JSON.stringify(document))).toThrowError(/failed validation/)
   })
 })
 
 describe('classifyLine', () => {
   it('classifies fixed, from, and custom lines', async () => {
     const { classifyLine } = await import('../src/pricing/types.js')
-    expect(classifyLine({ setup: 100, monthly: 10 })).toEqual({ kind: 'fixed', setup: 100, monthly: 10 })
-    expect(classifyLine({ setup_from: 8000 })).toEqual({ kind: 'from', setup: 8000, monthly: undefined })
+    expect(classifyLine({ setup: 100, monthly: 10 })).toEqual({
+      kind: 'fixed',
+      setup: 100,
+      monthly: 10,
+    })
+    expect(classifyLine({ setup_from: 8000 })).toEqual({
+      kind: 'from',
+      setup: 8000,
+      monthly: undefined,
+    })
     expect(classifyLine({ custom: true })).toEqual({ kind: 'custom' })
     expect(classifyLine({ monthly: 199 })).toEqual({ kind: 'fixed', setup: 0, monthly: 199 })
     expect(classifyLine(null)).toEqual({ kind: 'custom' })

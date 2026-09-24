@@ -51,7 +51,12 @@ describe('reconcilePage on a first observation', () => {
       page({
         section: 'Deluxe Suites',
         comparison: { entityIds: ['room-1', 'room-2'], metric: 'price' },
-        form: { id: 'booking', completedFields: ['dates'], pendingFields: ['guests'], maskedFields: [] },
+        form: {
+          id: 'booking',
+          completedFields: ['dates'],
+          pendingFields: ['guests'],
+          maskedFields: [],
+        },
       }),
     )
 
@@ -130,7 +135,10 @@ describe('reconcilePage on a page already seen', () => {
   })
 
   it('treats a new entity as a change even when the count is the same', () => {
-    const events = reconcilePage(page(), page({ entities: [{ id: 'room-2', name: 'Standard', kind: 'room' }] }))
+    const events = reconcilePage(
+      page(),
+      page({ entities: [{ id: 'room-2', name: 'Standard', kind: 'room' }] }),
+    )
 
     expect(events).toHaveLength(1)
     expect(events[0]?.type).toBe('entities/set')

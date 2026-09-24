@@ -11,9 +11,7 @@ import { z } from 'zod'
  */
 
 const nonEmptyString = z.string().min(1)
-const slug = z
-  .string()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be a lowercase kebab-case slug')
+const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be a lowercase kebab-case slug')
 
 export const presenceSchema = z.enum(['chat', 'voice', 'human'])
 export const capabilitySchema = z.enum(['assist', 'act', 'transact', 'enterprise'])
@@ -92,10 +90,12 @@ export const entitySchema = z.object({
   visible: z.boolean().default(true),
 })
 
-export const allowedOriginSchema = z.string().refine(
-  (value) => value === '*' || /^https?:\/\//.test(value),
-  'must be an absolute origin (or "*")',
-)
+export const allowedOriginSchema = z
+  .string()
+  .refine(
+    (value) => value === '*' || /^https?:\/\//.test(value),
+    'must be an absolute origin (or "*")',
+  )
 
 export const clientConfigSchema = z
   .object({
@@ -148,6 +148,8 @@ export function safeParseClientConfig(
   if (result.success) return { success: true, data: result.data }
   return {
     success: false,
-    issues: result.error.issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`),
+    issues: result.error.issues.map(
+      (issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`,
+    ),
   }
 }

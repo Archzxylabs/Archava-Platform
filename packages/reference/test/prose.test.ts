@@ -140,7 +140,9 @@ describe('renderStructuredTruth', () => {
     // The caller keeps the inner reply on null, so this must not fire for a
     // record that merely failed to inspire a sentence.
     expect(renderStructuredTruth({}, 'anything')).toBeNull()
-    expect(renderStructuredTruth({ booking_status: { reference: 'BK-1' } }, 'where is it?')).toBeNull()
+    expect(
+      renderStructuredTruth({ booking_status: { reference: 'BK-1' } }, 'where is it?'),
+    ).toBeNull()
     expect(renderStructuredTruth({ price: 'not a record' }, 'anything')).toBeNull()
   })
 })

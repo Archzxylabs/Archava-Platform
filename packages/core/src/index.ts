@@ -11,4 +11,10 @@ export {
   type ContextForm,
   type ContextError,
 } from './context-graph.js'
-export { assertTenant, scoped, TenantScopeError, tenantIdSchema, type TenantScope } from './tenant.js'
+export {
+  assertTenant,
+  scoped,
+  TenantScopeError,
+  tenantIdSchema,
+  type TenantScope,
+} from './tenant.js'

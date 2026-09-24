@@ -93,7 +93,9 @@ export function planRetrieval(request: RetrievalContextRequest): RetrievalPlan {
 }
 
 /** Shape stored chunks into provider-facing context. Content is not rewritten. */
-export function toContextChunks(chunks: readonly RetrievedChunk[]): readonly KnowledgeContextChunk[] {
+export function toContextChunks(
+  chunks: readonly RetrievedChunk[],
+): readonly KnowledgeContextChunk[] {
   return chunks.map((chunk) => ({
     sourceId: chunk.provenance.sourceId,
     sourceTitle: chunk.provenance.sourceTitle,

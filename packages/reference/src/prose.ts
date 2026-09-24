@@ -275,5 +275,7 @@ export function renderStructuredTruth(
 
   if (sentences.length === 0) return null
   const answer = sentences.join(' ')
-  return unwritten.length === 0 ? answer : `${answer} (I cannot put ${joinList(unwritten)} into words.)`
+  return unwritten.length === 0
+    ? answer
+    : `${answer} (I cannot put ${joinList(unwritten)} into words.)`
 }

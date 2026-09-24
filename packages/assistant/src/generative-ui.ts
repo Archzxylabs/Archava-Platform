@@ -172,9 +172,10 @@ export function buildComponent(input: unknown): GenerativeComponent {
  * prop; but it must not silently drop it either, because a recommendation the
  * visitor never saw is a broken promise. Both halves are returned.
  */
-export function buildComponents(
-  inputs: readonly unknown[],
-): { readonly components: readonly GenerativeComponent[]; readonly rejected: readonly string[] } {
+export function buildComponents(inputs: readonly unknown[]): {
+  readonly components: readonly GenerativeComponent[]
+  readonly rejected: readonly string[]
+} {
   const components: GenerativeComponent[] = []
   const rejected: string[] = []
 

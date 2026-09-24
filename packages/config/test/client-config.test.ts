@@ -94,7 +94,13 @@ describe('clientConfigSchema', () => {
     const scalars = safeParseClientConfig(
       baseConfig({
         entities: [
-          { id: 'suite-1', kind: 'product', name: 'Suite', summary: 'x', attributes: { rate: 900 } },
+          {
+            id: 'suite-1',
+            kind: 'product',
+            name: 'Suite',
+            summary: 'x',
+            attributes: { rate: 900 },
+          },
         ],
       }),
     )
@@ -105,7 +111,13 @@ describe('clientConfigSchema', () => {
     const nested = safeParseClientConfig(
       baseConfig({
         entities: [
-          { id: 'suite-1', kind: 'product', name: 'Suite', summary: 'x', attributes: { rate: { v: 9 } } },
+          {
+            id: 'suite-1',
+            kind: 'product',
+            name: 'Suite',
+            summary: 'x',
+            attributes: { rate: { v: 9 } },
+          },
         ],
       }),
     )

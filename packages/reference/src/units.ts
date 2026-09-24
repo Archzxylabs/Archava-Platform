@@ -38,7 +38,13 @@ export const referenceUnitInputs = [
     kind: 'resource',
     name: 'Treetop Suite',
     summary: 'Split-level suite on the canopy walk, with an outdoor bath.',
-    attributes: { guests: 3, sizeSqm: 52, bed: 'king-plus-sofa', view: 'canopy', outdoorBath: true },
+    attributes: {
+      guests: 3,
+      sizeSqm: 52,
+      bed: 'king-plus-sofa',
+      view: 'canopy',
+      outdoorBath: true,
+    },
     visible: true,
   },
   {

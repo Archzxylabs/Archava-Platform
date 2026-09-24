@@ -3,7 +3,10 @@ import path from 'node:path'
 import { templatesSchema, type Template, type TemplateCatalog } from './schema.js'
 
 export class TemplateError extends Error {
-  constructor(message: string, readonly detail?: unknown) {
+  constructor(
+    message: string,
+    readonly detail?: unknown,
+  ) {
     super(message)
     this.name = 'TemplateError'
   }

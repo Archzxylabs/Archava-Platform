@@ -700,17 +700,17 @@ Use this structure:
 
 ### One-time implementation
 
-| Item | Price |
-|---|---:|
-| ... | ... |
-| Bundle discount | -... |
+| Item            |   Price |
+| --------------- | ------: |
+| ...             |     ... |
+| Bundle discount |    -... |
 | **Total setup** | **...** |
 
 ### Recurring
 
-| Item | Monthly |
-|---|---:|
-| ... | ... |
+| Item             | Monthly |
+| ---------------- | ------: |
+| ...              |     ... |
 | **Base monthly** | **...** |
 
 ### Usage

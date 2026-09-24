@@ -20,8 +20,8 @@
 /** Raised when an amount reaches the formatter that cannot be money at all. */
 export class MoneyFormatError extends Error {
   constructor(message: string) {
-    super(message);
-    this.name = "MoneyFormatError";
+    super(message)
+    this.name = 'MoneyFormatError'
   }
 }
 
@@ -31,16 +31,13 @@ export class MoneyFormatError extends Error {
  * Read rather than hard-coded: USD → 2, IDR and JPY → 0. This is the divisor
  * between `amountMinor` and the major unit a visitor reads.
  */
-export function currencyFractionDigits(
-  currency: string,
-  locale: string,
-): number {
+export function currencyFractionDigits(currency: string, locale: string): number {
   const parts = new Intl.NumberFormat(locale, {
-    style: "currency",
+    style: 'currency',
     currency,
-  }).formatToParts(1);
-  const fraction = parts.find((part) => part.type === "fraction");
-  return fraction?.value.length ?? 0;
+  }).formatToParts(1)
+  const fraction = parts.find((part) => part.type === 'fraction')
+  return fraction?.value.length ?? 0
 }
 
 /**
@@ -53,25 +50,19 @@ export function currencyFractionDigits(
  * producer, and a dash in the total would hide it behind a plausible-looking
  * empty cell.
  */
-export function formatMoney(
-  amountMinor: number,
-  currency: string,
-  locale: string,
-): string {
+export function formatMoney(amountMinor: number, currency: string, locale: string): string {
   if (!Number.isFinite(amountMinor)) {
-    throw new MoneyFormatError(
-      `amount must be a finite number, received ${String(amountMinor)}`,
-    );
+    throw new MoneyFormatError(`amount must be a finite number, received ${String(amountMinor)}`)
   }
-  const digits = currencyFractionDigits(currency, locale);
+  const digits = currencyFractionDigits(currency, locale)
   const formatted = new Intl.NumberFormat(locale, {
-    style: "currency",
+    style: 'currency',
     currency,
-  }).format(amountMinor / 10 ** digits);
+  }).format(amountMinor / 10 ** digits)
   // ICU joins a currency symbol to its amount with a non-breaking space, which
   // keeps the pair together when a visitor widens the column — but it also means
   // the string a shell renders, and the string a caller compares against, are
   // different characters. Normalised to a plain space, the separator no longer
   // leaks into tests or into a page's own text content.
-  return formatted.replace(/[\u00a0\u202f]/g, " ");
+  return formatted.replace(/[\u00a0\u202f]/g, ' ')
 }

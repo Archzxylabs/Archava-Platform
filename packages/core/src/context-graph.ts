@@ -159,7 +159,10 @@ export function seedContextGraph(config: ClientConfig, route = '/'): ContextGrap
 export function reduceContextGraph(graph: ContextGraph, event: ContextEvent): ContextGraph {
   switch (event.type) {
     case 'page/route':
-      return { ...graph, page: { ...graph.page, route: event.route, kind: event.kind ?? graph.page.kind } }
+      return {
+        ...graph,
+        page: { ...graph.page, route: event.route, kind: event.kind ?? graph.page.kind },
+      }
     case 'page/section':
       return { ...graph, page: { ...graph.page, section: event.section } }
     case 'page/locale':
@@ -170,7 +173,15 @@ export function reduceContextGraph(graph: ContextGraph, event: ContextEvent): Co
       return { ...graph, entities: [...event.entities] }
     case 'entities/select': {
       const already = graph.entities.some((entity) => entity.id === event.entityId)
-      return already ? graph : { ...graph, entities: [...graph.entities, { id: event.entityId, name: event.entityId, kind: 'unknown' }] }
+      return already
+        ? graph
+        : {
+            ...graph,
+            entities: [
+              ...graph.entities,
+              { id: event.entityId, name: event.entityId, kind: 'unknown' },
+            ],
+          }
     }
     case 'entities/deselect':
       return { ...graph, entities: [] }
@@ -197,7 +208,10 @@ export function reduceContextGraph(graph: ContextGraph, event: ContextEvent): Co
         checkout: { step: event.step, index: event.index, total: event.total },
       }
     case 'session/authenticated':
-      return { ...graph, session: { authenticated: true, role: event.role, customerRef: event.customerRef } }
+      return {
+        ...graph,
+        session: { authenticated: true, role: event.role, customerRef: event.customerRef },
+      }
     case 'session/anonymous':
       return { ...graph, session: { authenticated: false } }
     case 'action/set':
@@ -210,7 +224,10 @@ export function reduceContextGraph(graph: ContextGraph, event: ContextEvent): Co
         ),
       }
     case 'error/recorded':
-      return { ...graph, errors: [...graph.errors, { code: event.code, occurredAt: event.occurredAt }] }
+      return {
+        ...graph,
+        errors: [...graph.errors, { code: event.code, occurredAt: event.occurredAt }],
+      }
     case 'error/cleared':
       return { ...graph, errors: [] }
     default:
@@ -219,7 +236,10 @@ export function reduceContextGraph(graph: ContextGraph, event: ContextEvent): Co
 }
 
 /** Apply an ordered event list to a seed graph. */
-export function foldContextEvents(graph: ContextGraph, events: readonly ContextEvent[]): ContextGraph {
+export function foldContextEvents(
+  graph: ContextGraph,
+  events: readonly ContextEvent[],
+): ContextGraph {
   return events.reduce(reduceContextGraph, graph)
 }
 
@@ -229,10 +249,15 @@ export function foldContextEvents(graph: ContextGraph, events: readonly ContextE
  * widen it. This is the single guard that keeps the assistant from promising
  * an action the platform cannot perform.
  */
-export function actionableContext(graph: ContextGraph, capabilityAllowed: readonly string[]): ContextGraph {
+export function actionableContext(
+  graph: ContextGraph,
+  capabilityAllowed: readonly string[],
+): ContextGraph {
   return {
     ...graph,
-    availableActions: graph.availableActions.filter((action) => capabilityAllowed.includes(action.name)),
+    availableActions: graph.availableActions.filter((action) =>
+      capabilityAllowed.includes(action.name),
+    ),
   }
 }
 

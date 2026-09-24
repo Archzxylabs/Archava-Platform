@@ -189,6 +189,8 @@ export function selectPresence(
  * this is the same string the operator reads; a caller that wants the structure
  * takes `selection.skipped`.
  */
-function describeSkipped(skipped: readonly { readonly mode: PresenceMode; readonly reason: string }[]): string {
+function describeSkipped(
+  skipped: readonly { readonly mode: PresenceMode; readonly reason: string }[],
+): string {
   return skipped.map((entry) => `${entry.mode} (${entry.reason})`).join(', ')
 }

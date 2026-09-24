@@ -35,13 +35,7 @@ export interface MaskOptions {
 export const REDACTED_LABEL = '[redacted]'
 
 /** Fields that must never be withheld outright when a partial view suffices. */
-const PARTIAL_FIELDS = new Set([
-  'email',
-  'customeremail',
-  'phone',
-  'phonenumber',
-  'customerphone',
-])
+const PARTIAL_FIELDS = new Set(['email', 'customeremail', 'phone', 'phonenumber', 'customerphone'])
 
 /** Substring-triggered denylist. A name containing one of these is sensitive. */
 const SENSITIVE_FRAGMENTS = [
@@ -68,14 +62,7 @@ const SENSITIVE_FRAGMENTS = [
 ] as const
 
 /** Whole-name matches that get a partial mask (identifiable but usable). */
-const SENSITIVE_NAMES = new Set([
-  'email',
-  'phone',
-  'address',
-  'dob',
-  'dateofbirth',
-  'rawform',
-])
+const SENSITIVE_NAMES = new Set(['email', 'phone', 'address', 'dob', 'dateofbirth', 'rawform'])
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -128,7 +115,9 @@ function maskValue(value: string, rule: MaskRule, path: string, notices: string[
     const prefix = prefixFor(strategy, rule, value)
     const visible = value.slice(0, prefix)
     const withheld = Math.max(0, value.length - visible.length)
-    notices.push(`${path} partially masked (${withheld} character${withheld === 1 ? '' : 's'} withheld)`)
+    notices.push(
+      `${path} partially masked (${withheld} character${withheld === 1 ? '' : 's'} withheld)`,
+    )
     if (withheld === 0) return `${visible}…`
     return `${visible}${'•'.repeat(Math.min(12, withheld))}`
   }
@@ -212,7 +201,11 @@ export function maskSensitiveFields(
 }
 
 /** Mask a single string value, for call sites that hold one field. */
-export function maskString(value: string, field = 'value', options: MaskOptions = {}): MaskedResult {
+export function maskString(
+  value: string,
+  field = 'value',
+  options: MaskOptions = {},
+): MaskedResult {
   const preserved = new Set([...(options.preserve ?? []), ...(options.allow ?? [])])
   if (preserved.has(field)) {
     return { value, notices: [], masked: false }

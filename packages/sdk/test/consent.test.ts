@@ -32,9 +32,9 @@ describe('parseConsent', () => {
   it('ignores a domain the visitor never saw', () => {
     const state = parseConsent({ page_context: true })
 
-    expect(CONSENT_DOMAINS.every((domain) => domain === 'page_context' || state[domain] === false)).toBe(
-      true,
-    )
+    expect(
+      CONSENT_DOMAINS.every((domain) => domain === 'page_context' || state[domain] === false),
+    ).toBe(true)
   })
 })
 

@@ -41,13 +41,7 @@ export interface RoleDefinition {
   readonly configure: readonly AdminResource[]
 }
 
-export const ROLE_NAMES = [
-  'archava_assistant',
-  'owner',
-  'admin',
-  'editor',
-  'viewer',
-] as const
+export const ROLE_NAMES = ['archava_assistant', 'owner', 'admin', 'editor', 'viewer'] as const
 export type RoleName = (typeof ROLE_NAMES)[number]
 
 const ALL_RESOURCES: readonly AdminResource[] = ADMIN_RESOURCES
@@ -80,12 +74,9 @@ const OWNER: RoleDefinition = {
 const ADMIN: RoleDefinition = {
   name: 'admin',
   label: 'Admin',
-  description:
-    'Day-to-day administration of the tenant. Cannot manage members or tenant settings.',
+  description: 'Day-to-day administration of the tenant. Cannot manage members or tenant settings.',
   read: ALL_RESOURCES,
-  write: ALL_RESOURCES.filter(
-    (resource) => resource !== 'members' && resource !== 'settings',
-  ),
+  write: ALL_RESOURCES.filter((resource) => resource !== 'members' && resource !== 'settings'),
   configure: [],
 }
 
@@ -127,13 +118,7 @@ const VIEWER: RoleDefinition = {
   configure: [],
 }
 
-export const BASELINE_ROLES: readonly RoleDefinition[] = [
-  ASSISTANT,
-  OWNER,
-  ADMIN,
-  EDITOR,
-  VIEWER,
-]
+export const BASELINE_ROLES: readonly RoleDefinition[] = [ASSISTANT, OWNER, ADMIN, EDITOR, VIEWER]
 
 const ROLE_BY_NAME = new Map<RoleName, RoleDefinition>(
   BASELINE_ROLES.map((role) => [role.name, role]),

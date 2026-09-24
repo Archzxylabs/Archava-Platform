@@ -38,46 +38,46 @@
  * the whole widget without touching CSS.
  */
 
-import type { Branding } from "@archava/config";
+import type { Branding } from '@archava/config'
 
 /** The palette a tenant without a theme gets. */
 const DEFAULT_THEME: Readonly<{
-  readonly accent: string;
-  readonly surface: string;
-  readonly ink: string;
-  readonly fontFamily: string;
+  readonly accent: string
+  readonly surface: string
+  readonly ink: string
+  readonly fontFamily: string
 }> = {
-  accent: "#1f6f5c",
-  surface: "#ffffff",
-  ink: "#16211d",
-  fontFamily: "system-ui, sans-serif",
-};
+  accent: '#1f6f5c',
+  surface: '#ffffff',
+  ink: '#16211d',
+  fontFamily: 'system-ui, sans-serif',
+}
 
 /** PRD §24's three radii, in pixels, because CSS takes lengths. */
 const RADIUS: Readonly<Record<string, string>> = {
-  soft: "8px",
-  rounded: "14px",
-  sharp: "0px",
-};
+  soft: '8px',
+  rounded: '14px',
+  sharp: '0px',
+}
 
 /** The radius used when a theme omits one or names one this file does not know. */
-const DEFAULT_RADIUS = "8px";
+const DEFAULT_RADIUS = '8px'
 
 /** Which colour is the page and which colour is the text, for one mode. */
 interface Ground {
-  readonly surface: string;
-  readonly ink: string;
+  readonly surface: string
+  readonly ink: string
 }
 
 /** The tenant's palette, resolved for both of the modes the sheet can be in. */
 interface Palette {
-  readonly accent: string;
-  readonly radius: string;
-  readonly fontFamily: string;
-  readonly light: Ground;
-  readonly dark: Ground;
+  readonly accent: string
+  readonly radius: string
+  readonly fontFamily: string
+  readonly light: Ground
+  readonly dark: Ground
   /** The end of the tenant's ground that reads on top of `accent`. */
-  readonly onAccent: string;
+  readonly onAccent: string
 }
 
 /**
@@ -88,8 +88,8 @@ interface Palette {
  * colour and box sizing among them — because shadow isolation means the host
  * page's rules do not reach in, and so the host's reset does not either.
  */
-export function chatSheet(theme: Branding["theme"] | null): string {
-  const palette = resolvePalette(theme);
+export function chatSheet(theme: Branding['theme'] | null): string {
+  const palette = resolvePalette(theme)
   return [
     tokens(palette),
     reset(palette),
@@ -103,15 +103,15 @@ export function chatSheet(theme: Branding["theme"] | null): string {
     sourceCard(),
     action(palette.radius),
     inspector(),
-  ].join("\n");
+  ].join('\n')
 }
 
 /** A `#rrggbb` colour, or `null` when the value is anything else. */
 function hexColor(value: string | undefined): string | null {
   if (value === undefined || /^#[0-9a-fA-F]{6}$/.test(value) === false) {
-    return null;
+    return null
   }
-  return value.toLowerCase();
+  return value.toLowerCase()
 }
 
 /**
@@ -126,10 +126,10 @@ function hexColor(value: string | undefined): string | null {
  */
 function fontStack(value: string | undefined): string | null {
   if (value === undefined) {
-    return null;
+    return null
   }
-  const cleaned = value.replace(/[^a-zA-Z0-9\s,'"-]/g, "").trim();
-  return cleaned.length > 0 ? cleaned : null;
+  const cleaned = value.replace(/[^a-zA-Z0-9\s,'"-]/g, '').trim()
+  return cleaned.length > 0 ? cleaned : null
 }
 
 /**
@@ -141,18 +141,16 @@ function fontStack(value: string | undefined): string | null {
  * commits a light pair therefore gets light as the committed mode, and a tenant
  * who commits a dark pair gets dark — neither is asked to say which.
  */
-function resolvePalette(theme: Branding["theme"] | null): Palette {
-  const accent = hexColor(theme?.accent) ?? DEFAULT_THEME.accent;
-  const surface = hexColor(theme?.surface) ?? DEFAULT_THEME.surface;
-  const ink = hexColor(theme?.ink) ?? DEFAULT_THEME.ink;
-  const fontFamily = fontStack(theme?.fontFamily) ?? DEFAULT_THEME.fontFamily;
+function resolvePalette(theme: Branding['theme'] | null): Palette {
+  const accent = hexColor(theme?.accent) ?? DEFAULT_THEME.accent
+  const surface = hexColor(theme?.surface) ?? DEFAULT_THEME.surface
+  const ink = hexColor(theme?.ink) ?? DEFAULT_THEME.ink
+  const fontFamily = fontStack(theme?.fontFamily) ?? DEFAULT_THEME.fontFamily
   const radius =
-    theme?.radius === undefined
-      ? DEFAULT_RADIUS
-      : (RADIUS[theme.radius] ?? DEFAULT_RADIUS);
-  const committed: Ground = { surface, ink };
-  const swapped: Ground = { surface: ink, ink: surface };
-  const lightFirst = relativeLuminance(surface) > relativeLuminance(ink);
+    theme?.radius === undefined ? DEFAULT_RADIUS : (RADIUS[theme.radius] ?? DEFAULT_RADIUS)
+  const committed: Ground = { surface, ink }
+  const swapped: Ground = { surface: ink, ink: surface }
+  const lightFirst = relativeLuminance(surface) > relativeLuminance(ink)
   return {
     accent,
     radius,
@@ -160,7 +158,7 @@ function resolvePalette(theme: Branding["theme"] | null): Palette {
     light: lightFirst ? committed : swapped,
     dark: lightFirst ? swapped : committed,
     onAccent: readableOn(accent, committed),
-  };
+  }
 }
 
 /**
@@ -172,13 +170,9 @@ function resolvePalette(theme: Branding["theme"] | null): Palette {
  * the same accent, so this is decided once and declared once.
  */
 function readableOn(accent: string, ground: Ground): string {
-  const fromSurface = Math.abs(
-    relativeLuminance(ground.surface) - relativeLuminance(accent),
-  );
-  const fromInk = Math.abs(
-    relativeLuminance(ground.ink) - relativeLuminance(accent),
-  );
-  return fromInk > fromSurface ? ground.ink : ground.surface;
+  const fromSurface = Math.abs(relativeLuminance(ground.surface) - relativeLuminance(accent))
+  const fromInk = Math.abs(relativeLuminance(ground.ink) - relativeLuminance(accent))
+  return fromInk > fromSurface ? ground.ink : ground.surface
 }
 
 /**
@@ -188,16 +182,16 @@ function readableOn(accent: string, ground: Ground): string {
  * parse cannot be handed anything but six hexadecimal digits.
  */
 function relativeLuminance(color: string): number {
-  const red = channelLuminance(color, 1);
-  const green = channelLuminance(color, 3);
-  const blue = channelLuminance(color, 5);
-  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  const red = channelLuminance(color, 1)
+  const green = channelLuminance(color, 3)
+  const blue = channelLuminance(color, 5)
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
 }
 
 /** One 8-bit channel of a `#rrggbb` colour, linearised as sRGB defines it. */
 function channelLuminance(color: string, offset: number): number {
-  const value = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
-  return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  const value = Number.parseInt(color.slice(offset, offset + 2), 16) / 255
+  return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
 }
 
 /**
@@ -215,7 +209,7 @@ function tokens(palette: Palette): string {
   --archava-on-accent: ${palette.onAccent};
   color-scheme: light dark;
 }`,
-  ];
+  ]
   // A tenant whose two ends are the same colour has one ground, and a media
   // block that re-declares it verbatim is noise.
   if (palette.light.surface !== palette.dark.surface) {
@@ -224,9 +218,9 @@ function tokens(palette: Palette): string {
     --archava-surface: ${palette.dark.surface};
     --archava-ink: ${palette.dark.ink};
   }
-}`);
+}`)
   }
-  return blocks.join("\n");
+  return blocks.join('\n')
 }
 
 function reset(palette: Palette): string {
@@ -261,7 +255,7 @@ button:hover {
 button:focus-visible {
   outline: 2px solid var(--archava-ink);
   outline-offset: 2px;
-}`;
+}`
 }
 
 function log(): string {
@@ -280,7 +274,7 @@ function log(): string {
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--archava-ink) 12%, transparent);
   border-radius: inherit;
-}`;
+}`
 }
 
 function composer(radius: string): string {
@@ -307,7 +301,7 @@ function composer(radius: string): string {
   background: var(--archava-accent);
   color: var(--archava-on-accent);
   padding: 8px 14px;
-}`;
+}`
 }
 
 function banner(): string {
@@ -332,7 +326,7 @@ function banner(): string {
 .archava-sources {
   font-size: 13px;
   opacity: 0.75;
-}`;
+}`
 }
 
 function truth(): string {
@@ -359,7 +353,7 @@ function truth(): string {
   font-size: 12px;
   opacity: 0.7;
   margin-top: 4px;
-}`;
+}`
 }
 
 function matrix(): string {
@@ -378,7 +372,7 @@ function matrix(): string {
   font-size: 12px;
   opacity: 0.7;
   margin-top: 4px;
-}`;
+}`
 }
 
 function picker(radius: string): string {
@@ -400,7 +394,7 @@ function picker(radius: string): string {
   border-color: var(--archava-accent);
   padding: 6px 10px;
   border-radius: ${radius};
-}`;
+}`
 }
 
 function order(): string {
@@ -425,7 +419,7 @@ function order(): string {
   margin-left: auto;
   font-size: 12px;
   opacity: 0.7;
-}`;
+}`
 }
 
 function sourceCard(): string {
@@ -440,7 +434,7 @@ function sourceCard(): string {
 .archava-source-card blockquote {
   font-style: italic;
   line-height: 1.5;
-}`;
+}`
 }
 
 function action(radius: string): string {
@@ -483,7 +477,7 @@ function action(radius: string): string {
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--archava-ink) 18%, transparent);
   border-radius: ${radius};
-}`;
+}`
 }
 
 function inspector(): string {
@@ -500,5 +494,5 @@ function inspector(): string {
 .archava-permitted {
   margin-top: 6px;
   font-family: ui-monospace, monospace;
-}`;
+}`
 }

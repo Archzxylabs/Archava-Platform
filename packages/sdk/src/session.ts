@@ -81,7 +81,9 @@ export interface SdkSession {
 export function createSession(init: SdkInit): SdkSession {
   const tenantId = typeof init.tenantId === 'string' ? init.tenantId.trim() : ''
   if (tenantId.length === 0) {
-    throw new SdkConfigError('Archava.init requires a tenantId; a page with no tenant has no scope.')
+    throw new SdkConfigError(
+      'Archava.init requires a tenantId; a page with no tenant has no scope.',
+    )
   }
 
   let consent = parseConsent(init.consent)
@@ -207,8 +209,8 @@ function seedless(tenantId: string, route: string): ContextGraph {
 function withheld(graph: ContextGraph, sensitive: readonly string[]): readonly string[] {
   const form = graph.form
   const named = form === undefined ? [] : [...form.completedFields, ...form.pendingFields]
-  return [...new Set([...named, ...sensitive])].filter((name) =>
-    isValueBearing(name) || sensitive.includes(name),
+  return [...new Set([...named, ...sensitive])].filter(
+    (name) => isValueBearing(name) || sensitive.includes(name),
   )
 }
 

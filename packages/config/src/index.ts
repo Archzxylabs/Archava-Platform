@@ -25,11 +25,7 @@ export {
 
 export { loadPricebook, parsePricebook, PricebookError } from './pricing/loader.js'
 
-export {
-  templatesSchema,
-  type Template,
-  type TemplateCatalog,
-} from './templates/schema.js'
+export { templatesSchema, type Template, type TemplateCatalog } from './templates/schema.js'
 
 export { loadTemplates, TemplateRegistry, TemplateError } from './templates/loader.js'
 

@@ -95,9 +95,24 @@ describe('custom / Enterprise items never receive an invented fixed price', () =
 
 describe('discount authority', () => {
   it('only ever applies the published bundle discount tiers', () => {
-    const one = engine.quote({ region: 'ID', presence: 'chat', capability: 'assist', environment: 'existing_site' })
-    const two = engine.quote({ region: 'ID', presence: 'chat', capability: 'assist', environment: 'landing' })
-    const three = engine.quote({ region: 'ID', presence: 'voice', capability: 'act', environment: 'business' })
+    const one = engine.quote({
+      region: 'ID',
+      presence: 'chat',
+      capability: 'assist',
+      environment: 'existing_site',
+    })
+    const two = engine.quote({
+      region: 'ID',
+      presence: 'chat',
+      capability: 'assist',
+      environment: 'landing',
+    })
+    const three = engine.quote({
+      region: 'ID',
+      presence: 'voice',
+      capability: 'act',
+      environment: 'business',
+    })
 
     expect(one.paidCoreComponentCount).toBe(1)
     expect(one.bundleDiscountPct).toBe(0)
@@ -119,8 +134,6 @@ describe('discount authority', () => {
     expect(quote.bundleDiscountPct).toBe(10)
     // Discount applies to core only; integrations stay at list price.
     expect(quote.integrationSetupTotal).toBe(7_500_000)
-    expect(quote.oneTimeTotal).toBe(
-      Math.round((22_230_000 + 7_500_000) / 100_000) * 100_000,
-    )
+    expect(quote.oneTimeTotal).toBe(Math.round((22_230_000 + 7_500_000) / 100_000) * 100_000)
   })
 })
