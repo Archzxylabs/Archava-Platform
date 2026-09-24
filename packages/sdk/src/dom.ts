@@ -168,7 +168,10 @@ function readEntities(nodes: ScoutNodeList | undefined): PageShape['entities'] {
   return listOf(nodes).flatMap((node) => {
     const id = attribute(node, 'data-archava-entity') ?? node.id
     if (id === undefined || id.length === 0) return []
-    const label = readText(inline(node)) ?? attribute(node, 'aria-label')
+    // The accessible name first: an `aria-label` is the page *declaring* what the
+    // entity is called, and a card's own text is a name, a summary and a run of
+    // controls concatenated — the wrong answer to "what is this thing called".
+    const label = attribute(node, 'aria-label') ?? readText(inline(node))
     return [{ id, name: label ?? id, kind: attribute(node, 'data-archava-kind') ?? 'unknown' }]
   })
 }
