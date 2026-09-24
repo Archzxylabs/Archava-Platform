@@ -6,12 +6,12 @@
   "description": "The reference dataset: one tenant's units, rates, availability, and knowledge, in the platform's own validated shapes.",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": {
-  },
+  "exports": {},
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@archava/adapters": "workspace:*",
     "@archava/assistant": "workspace:*",
     "@archava/config": "workspace:*",
     "@archava/core": "workspace:*",
