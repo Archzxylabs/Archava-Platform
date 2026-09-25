@@ -1,3 +1,5 @@
+import { minorUnitExponent } from '@archava/config'
+
 /**
  * Money, formatted for a visitor without restating what a live system said.
  *
@@ -10,11 +12,26 @@
  * IDR is the interesting case. Its minor unit is 1, so the reference tenant's
  * `amountMinor: 1_438_000` (`packages/reference/src/rates.ts`) is 1,438,000
  * whole rupiah, and a formatter that assumed two decimal places would print
- * `IDR 14,380` — off by a factor of a hundred, in the direction that
- * under-quotes a guest. So the divisor is read from the currency through
- * `Intl`, never assumed. A currency whose ICU digits disagree with the
- * producer's convention is then a data bug that shows up in exactly one place
- * instead of a silent factor-of-100 error.
+ * `IDR 14,380` — off by a factor of a hundred, in the direction that under-quotes
+ * a guest.
+ *
+ * So the divisor comes from `minorUnitExponent`, an explicit platform contract,
+ * and never from `Intl`. That is the one thing this module refuses to do, and it
+ * is worth saying in terms of the failure rather than the preference: the divisor
+ * used to be read from
+ * `new Intl.NumberFormat(locale, { style: 'currency', currency }).formatToParts(1)`,
+ * which makes the value of a *stored* price depend on the ICU dataset of the
+ * machine printing it. CI and the laptop that wrote the code disagreed — IDR
+ * gained two fraction digits on the runner and lost them locally — and the same
+ * `amountMinor` meant two different prices. A stored amount is a fact about the
+ * tenant's data; a locale's preference for symbol placement and digit grouping is
+ * not, and letting the second decide the first is how a price under-quotes by a
+ * hundred on one operating system and not another.
+ *
+ * `Intl` is still here, and still doing the half it is actually authoritative
+ * for: taking the already-scaled major-unit number and presenting it in the
+ * tenant's language (`Rp` grouping, `$` placement). Presentation may vary by ICU
+ * dataset; the number being presented may not.
  */
 
 /** Raised when an amount reaches the formatter that cannot be money at all. */
@@ -25,44 +42,50 @@ export class MoneyFormatError extends Error {
   }
 }
 
+export { minorUnitExponent }
+
 /**
- * How many decimal places `currency` uses, as ICU defines it.
+ * How many decimal places `currency` uses, as the platform declares it.
  *
- * Read rather than hard-coded: USD → 2, IDR and JPY → 0. This is the divisor
- * between `amountMinor` and the major unit a visitor reads.
+ * Re-exported from `@archava/config` so a shell that needs the divisor has one
+ * import rather than two definitions. It lost its `locale` parameter, and that is
+ * the change rather than a simplification: whether a currency has a minor unit is
+ * not a question a locale can answer, and an argument that can only be ignored is
+ * an argument that was always lying.
  */
-export function currencyFractionDigits(currency: string, locale: string): number {
-  const parts = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-  }).formatToParts(1)
-  const fraction = parts.find((part) => part.type === 'fraction')
-  return fraction?.value.length ?? 0
+export function currencyFractionDigits(currency: string): number {
+  return minorUnitExponent(currency)
 }
 
 /**
- * Minor units as the string a visitor reads: `Rp 1.438.000`, `$14,380.00`.
+ * Minor units as the string a visitor reads: `Rp 1.438.000`, `$143.80`.
  *
  * `locale` is the tenant's language, not the browser's — a resort in Yogyakarta
  * should show `Rp` to an Indonesian visitor regardless of where the browser is
  * set. An amount that is not a finite number throws rather than rendering as a
- * dash: a decided turn that carries a non-numeric total is a defect in the
- * producer, and a dash in the total would hide it behind a plausible-looking
- * empty cell.
+ * dash: a decided turn carrying a non-numeric total is a defect in the producer,
+ * and a dash in the total would hide it behind a plausible-looking empty cell. A
+ * currency the platform declares no exponent for throws by the same standard —
+ * an amount whose scale is unknown is not an amount, and printing it anyway is
+ * the failure this module exists to prevent.
  */
 export function formatMoney(amountMinor: number, currency: string, locale: string): string {
   if (!Number.isFinite(amountMinor)) {
     throw new MoneyFormatError(`amount must be a finite number, received ${String(amountMinor)}`)
   }
-  const digits = currencyFractionDigits(currency, locale)
+  const major = amountMinor / 10 ** minorUnitExponent(currency)
   const formatted = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-  }).format(amountMinor / 10 ** digits)
-  // ICU joins a currency symbol to its amount with a non-breaking space, which
-  // keeps the pair together when a visitor widens the column — but it also means
-  // the string a shell renders, and the string a caller compares against, are
-  // different characters. Normalised to a plain space, the separator no longer
-  // leaks into tests or into a page's own text content.
+  }).format(major)
+  // ICU joins a currency symbol to its amount with a non-breaking space, so the
+  // string a shell renders and the string a caller compares against differ by an
+  // invisible character. Normalising to a plain space keeps the separator out of
+  // the page's text content and out of every assertion that reads it.
+  //
+  // The two characters are written as escapes rather than typed literally: both
+  // are irregular whitespace, one of them is invisible in an editor, and a literal
+  // inside the class is a character no reviewer can see in a diff. Behaviour is
+  // identical to spelling them out.
   return formatted.replace(/[\u00a0\u202f]/g, ' ')
 }

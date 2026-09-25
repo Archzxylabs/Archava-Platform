@@ -17,7 +17,10 @@
  *    a slot that does not exist. Whether a slot exists is a question only the
  *    catalog can answer, so it is asked — through {@link EntityResolver} — or the
  *    action is refused. A placeholder, a fixture, or a registry example passed in
- *    as though it were a catalog answer is the failure mode this prevents.
+ *    as though it were a catalog answer is the failure mode this prevents. "No
+ *    resolver was supplied" is a refusal, not permission: an unverified
+ *    `slotId` is exactly what §9 exists to stop, and a missing port is not
+ *    evidence that the answer would have been yes.
  *
  * 3. **Nothing is inferred from a registered action's example.** `requiredInputs`
  *    on an `ActionDefinition` is the model-facing contract — the list of names a
@@ -46,8 +49,20 @@ export interface EntityResolver {
   resolveExists(tenantId: string, entityKind: string, entityId: unknown): Promise<boolean>
 }
 
-/** What a single field is allowed to be. Unknown names are always refused. */
-const ENTITY_KIND_PATTERN = /^[a-z][a-z0-9_.]*$/
+/**
+ * What a well-formed entity kind name looks like.
+ *
+ * Lowercase first letter, then letters, digits, underscores and dots. The first
+ * letter is constrained because a kind is a *name* in a message someone reads,
+ * and `9` or `_` leading one would be a typo; the rest is deliberately permissive
+ * about case, because `pageEntity` is a kind this module declares — see the L1 UI
+ * actions below. A pattern that excluded camelCase did not make these kinds
+ * invalid, it made them invisible: `fieldDeclaresEntity` returned false, so no
+ * missing-resolver refusal, and `collectEntityRejections` returned `[]`, so the id
+ * was never asked about at all. The web app's `pageEntityResolver` existed to
+ * answer exactly those questions and was never called.
+ */
+const ENTITY_KIND_PATTERN = /^[a-z][a-zA-Z0-9_.]*$/
 
 interface InputField {
   readonly kind: 'string' | 'number' | 'boolean' | 'object' | 'array'
@@ -96,7 +111,7 @@ function innerSchema(field: InputField): z.ZodTypeAny {
     case 'boolean':
       return z.boolean()
     case 'object':
-      return z.object(objectShape(field.fields ?? {}))
+      return objectSchema(field)
     case 'array': {
       const items = field.items
       // An array with no stated element shape is refused, not treated as
@@ -107,6 +122,25 @@ function innerSchema(field: InputField): z.ZodTypeAny {
       return z.array(innerSchema(items))
     }
   }
+}
+
+/**
+ * The zod schema for an object field.
+ *
+ * With `fields` declared, it is a zod object over exactly those — and nothing else,
+ * because a second source of truth for a field's type is a place for the two to
+ * disagree. Without them, it is *not* `z.object({})`: zod strips keys an object
+ * schema does not name, so `admin.config.update`'s `changes` and
+ * `form.submit`'s `fields` — both declared as "an object" with no interior — would
+ * arrive at the executor as `{}` whatever the visitor submitted. The action would
+ * be allowed and every value in it gone, which is a silent data loss on a path
+ * nothing else checks. `z.record(z.unknown())` keeps the payload intact instead.
+ */
+function objectSchema(field: InputField): z.ZodTypeAny {
+  const fields = field.fields
+  if (fields === undefined || Object.keys(fields).length === 0)
+    return z.record(z.string(), z.unknown())
+  return z.object(objectShape(fields))
 }
 
 function objectShape(fields: Readonly<Record<string, InputField>>): z.ZodRawShape {
@@ -217,6 +251,36 @@ const INPUT_SCHEMAS: Readonly<Record<string, Readonly<Record<string, InputField>
 const FORBIDDEN_FIELDS: readonly string[] = ['tenantId', 'tenant_id']
 
 /**
+ * Whether a field asks for an id that has to be resolved, at any depth.
+ *
+ * Recursive for the reason the walk in {@link collectEntityRejections} is: a field
+ * three levels down still names a real thing, and a check that stopped at the top
+ * would let `booking.create`'s `customer.customerRef` — an entity-bearing field
+ * nobody at the top level can see — run unresolved. An entity *kind* that does not
+ * match {@link ENTITY_KIND_PATTERN} is not treated as a declaration, because the
+ * walk below skips one too and the two must agree.
+ */
+function fieldDeclaresEntity(field: InputField): boolean {
+  if (field.entity !== undefined && ENTITY_KIND_PATTERN.test(field.entity)) return true
+  if (field.items !== undefined && fieldDeclaresEntity(field.items)) return true
+  if (field.fields !== undefined) {
+    for (const child of Object.values(field.fields)) {
+      if (fieldDeclaresEntity(child)) return true
+    }
+  }
+  return false
+}
+
+/**
+ * Whether a contract, as a whole, asks for an id that has to be resolved.
+ *
+ * A `true` here is what makes a missing resolver a refusal rather than a shrug.
+ */
+function contractDeclaresEntity(contract: Readonly<Record<string, InputField>>): boolean {
+  return Object.values(contract).some(fieldDeclaresEntity)
+}
+
+/**
  * Validate one action's inputs against its registered contract.
  *
  * Returns the parsed inputs, or the reasons it was refused. It does not throw:
@@ -298,7 +362,29 @@ export async function validateActionInputs(request: {
     return { ok: false, rejections }
   }
 
+  // Shape is not existence. A contract with an entity-bearing field somewhere in
+  // it — however deeply nested — declares that some id in the input must be
+  // answered for by an authoritative resolver, and without one there is nothing
+  // to ask. Returning `ok` here is what fail-open looked like: every shape checked
+  // out, so the action ran with an unverified `slotId` and a booking was created
+  // against a slot that may not exist.
+  //
+  // A contract with no entity-bearing field is different, and is allowed through.
+  // `admin.config.update` and `navigation.go` name no outside thing, so there is
+  // nothing to resolve and refusing them would be a rule that never had a reason.
   if (request.resolver === undefined) {
+    if (contractDeclaresEntity(contract)) {
+      return {
+        ok: false,
+        rejections: [
+          {
+            actionId: request.actionId,
+            field: '*',
+            reason: `"${request.actionId}" takes an id that must be verified against an authoritative entity resolver, and none was supplied, so nothing may be submitted for it.`,
+          },
+        ],
+      }
+    }
     return { ok: true, inputs: parsed }
   }
 
@@ -388,8 +474,25 @@ async function collectEntityRejections(
   if (field.entity === undefined) return []
   if (!ENTITY_KIND_PATTERN.test(field.entity)) return []
 
+  // No resolver present.
+  //
+  // `validateActionInputs` refuses an entity-bearing contract before it gets here,
+  // so a caller reaching this line is one that reached it via a path it did not
+  // anticipate — most easily an *optional* nested object the input never supplied,
+  // where the walk still runs over a declared field nobody filled. Returning `[]`
+  // ("nothing to verify here") is what a port nobody asked looks like, and a
+  // refusal is the only honest answer, so the same refusal is produced here rather
+  // than trusting every caller to have filtered first.
   const resolver = request.resolver
-  if (resolver === undefined) return []
+  if (resolver === undefined) {
+    return [
+      {
+        actionId: request.actionId,
+        field: path,
+        reason: `"${path}" names an id that must be verified against an authoritative entity resolver, and none was supplied.`,
+      },
+    ]
+  }
 
   let exists: boolean
   try {

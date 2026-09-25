@@ -26,6 +26,8 @@
  *    are live as of this turn" without stamping a time nobody measured.
  */
 
+import { minorUnitDivisor } from '@archava/config'
+
 /** A resolved subject's record, as the port answered it. */
 type SubjectRecord = Readonly<Record<string, unknown>>
 
@@ -53,14 +55,20 @@ function asNumber(value: unknown): number | null {
 /**
  * Minor units to a display string.
  *
- * IDR's minor unit is 1, so the amount is the figure itself; the formatting groups
- * digits so 2,415,000 reads as a price and not as a latitude. Any other currency
- * is divided by 100 rather than guessed at, because halving a currency that is
- * already major-unit is a visible error while a zero-decimal currency misread is
- * a price off by a hundred.
+ * The divisor comes from `minorUnitDivisor`, the platform's currency contract —
+ * this function used to test `currency === 'IDR'` and divide everything else by
+ * 100, which was two definitions of one fact in one platform. The second would
+ * have kept under-quoting the moment the pricebook gained a zero-decimal
+ * currency, because "not IDR" is a guess wearing the shape of a rule. An
+ * unsupported currency throws instead: the reference tenant prices in IDR and
+ * USD, so a third code is a defect in whatever produced it, and a `NaN` in a
+ * sentence is a worse answer than a failure.
+ *
+ * The result is rounded to whole major units and grouped, because a resort
+ * quotes a nightly rate as "2,415,000" rather than as cents.
  */
 export function formatMoney(amountMinor: number, currency: string): string {
-  const major = currency === 'IDR' ? amountMinor : Math.round(amountMinor / 100)
+  const major = Math.round(amountMinor / minorUnitDivisor(currency))
   const grouped = Math.abs(major)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ',')

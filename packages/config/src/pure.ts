@@ -51,6 +51,16 @@ export {
 export { templatesSchema, type Template, type TemplateCatalog } from './templates/schema.js'
 
 export {
+  SUPPORTED_CURRENCIES,
+  CURRENCY_MINOR_UNIT_EXPONENTS,
+  UnknownCurrencyError,
+  isSupportedCurrency,
+  minorUnitExponent,
+  minorUnitDivisor,
+  type CurrencyCode,
+} from './currency.js'
+
+export {
   REGIONS,
   PRESENCE_TIERS,
   CAPABILITY_TIERS,

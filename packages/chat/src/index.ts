@@ -33,7 +33,12 @@ export {
   type TurnCitation,
 } from './view.js'
 
-export { formatMoney, MoneyFormatError, currencyFractionDigits } from './money.js'
+export {
+  formatMoney,
+  MoneyFormatError,
+  currencyFractionDigits,
+  minorUnitExponent,
+} from './money.js'
 
 export { chatSheet } from './styles.js'
 

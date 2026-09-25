@@ -269,6 +269,20 @@ function resolverFor(existing: Readonly<Record<string, readonly string[]>>): Ent
       Promise.resolve((existing[entityKind] ?? []).includes(String(entityId))),
   }
 }
+/**
+ * A resolver that confirms whatever it is asked about.
+ *
+ * Only for tests that reach the gate, the executor or the event boundary with an
+ * entity-bearing action and are *not* about §9 — supplying this is what lets them
+ * stay on their subject now that an action naming an entity without a resolver is
+ * refused. It is deliberately not the default in `request()`: a resolver nobody
+ * had to name was exactly how the validation gate came to be fail-open, and a
+ * fixture that answers yes to everything should stay as explicit in the file as it
+ * is untrustworthy as a catalog.
+ */
+const CONFIRMING: EntityResolver = {
+  resolveExists: (): Promise<boolean> => Promise.resolve(true),
+}
 
 /**
  * A turn request with the defaults every test shares.
@@ -830,6 +844,7 @@ describe('the policy gate (§18)', () => {
           { type: 'action/set', actions: enabled('booking.create', 'order.status.read') },
         ]),
         brain: brainFor('booking.create', 'order.status.read'),
+        resolver: CONFIRMING,
       }),
     )
     const booking = outcome.actions.find((action) => action.actionId === 'booking.create')
@@ -851,6 +866,7 @@ describe('the policy gate (§18)', () => {
         brain: brainFor('booking.create'),
         executor: run,
         confirmedActionIds: ['booking.create'],
+        resolver: CONFIRMING,
       }),
     )
     expect(outcome.actions[0]?.policy).toBe('allowed')
@@ -917,6 +933,7 @@ describe('the policy gate (§18)', () => {
         graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
         capability: 'assist',
         brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
       }),
     )
     expect(outcome.permittedActionIds).toEqual(['order.status.read'])
@@ -1073,6 +1090,7 @@ describe('action input validation (§9)', () => {
       request({
         graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
         brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
         executor: {
           executorId: 'broken',
           execute() {
@@ -1223,6 +1241,7 @@ describe('handoff and events (§26, §27)', () => {
       request({
         graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
         brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
         executor: executor(),
       }),
     )
@@ -1236,6 +1255,7 @@ describe('handoff and events (§26, §27)', () => {
       request({
         graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
         brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
         executor: {
           executorId: 'broken',
           execute() {
@@ -1265,6 +1285,7 @@ describe('handoff and events (§26, §27)', () => {
       request({
         graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
         brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
       }),
     )
     const names = outcome.events.map((event) => event.name)
