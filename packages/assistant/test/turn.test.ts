@@ -22,7 +22,11 @@ import {
   type StructuredTruthPort,
   type TurnRequest,
 } from '../src/index.js'
-import type { ActionExecutionRequest, ActionExecutor } from '../src/execution.js'
+import type {
+  ActionExecutionRequest,
+  ActionExecutionResult,
+  ActionExecutor,
+} from '../src/execution.js'
 import type { EntityResolver } from '../src/validation.js'
 
 /**
@@ -1745,6 +1749,123 @@ describe('handoff and events (§26, §27)', () => {
       }),
     )
     expect(outcome.handoff?.reason).toBe('repeated_failure')
+  })
+
+  it('does not escalate on two recorded errors — the threshold is three (§26)', async () => {
+    // The boundary, from below. A threshold lowered to two passes every test that
+    // only ever exercises three, so the absence needs its own assertion: two
+    // recorded errors is a visitor with a problem, not a visitor the platform has
+    // already failed three times.
+    const two = await runTurn(
+      request({
+        graph: graph([
+          { type: 'error/recorded', code: 'booking_slot_unavailable', occurredAt: OCCURRED_AT },
+          { type: 'error/recorded', code: 'payment_declined', occurredAt: OCCURRED_AT },
+        ]),
+        brain: probe(),
+      }),
+    )
+    expect(two.handoff).toBeNull()
+  })
+
+  it('counts failed executions to the same threshold (§26)', async () => {
+    // The second scope, at its own boundary. Two attempts that returned `failed`
+    // is not three, and three is — the two halves of `repeated_failure` fail
+    // together, so both need the assertion from below and above.
+    const broken: ActionExecutor = {
+      executorId: 'broken',
+      execute: (request): Promise<ActionExecutionResult> =>
+        Promise.resolve({
+          status: 'failed',
+          errorCode: 'store_offline',
+          retryable: true,
+          message: `Store offline for ${request.action}.`,
+        }),
+    }
+
+    const two = await runTurn(
+      request({
+        graph: graph([
+          { type: 'action/set', actions: enabled('product.read', 'availability.read') },
+        ]),
+        brain: brainFor('product.read', 'availability.read'),
+        resolver: CONFIRMING,
+        executor: broken,
+      }),
+    )
+    expect(two.actions.map((action) => action.execution)).toEqual(['failed', 'failed'])
+    expect(two.handoff).toBeNull()
+
+    const three = await runTurn(
+      request({
+        graph: graph([
+          {
+            type: 'action/set',
+            actions: enabled('product.read', 'availability.read', 'order.status.read'),
+          },
+        ]),
+        brain: brainFor('product.read', 'availability.read', 'order.status.read'),
+        resolver: CONFIRMING,
+        executor: broken,
+      }),
+    )
+    expect(three.actions.map((action) => action.execution)).toEqual(['failed', 'failed', 'failed'])
+    expect(three.handoff?.reason).toBe('repeated_failure')
+    // No graph error was recorded, so this escalation came from the failed
+    // executions and not from the session arriving with three of its own.
+    expect(three.handoff?.errors).toEqual([])
+  })
+
+  it('does not count successes or pending confirmations as failures (§26)', async () => {
+    // Three reads that worked is a visitor getting things done. Counting them
+    // would escalate exactly the turns that went well, and a confirmation held
+    // open is a visitor being asked — neither is an attempt that broke.
+    const succeeded = await runTurn(
+      request({
+        graph: graph([
+          {
+            type: 'action/set',
+            actions: enabled('product.read', 'availability.read', 'order.status.read'),
+          },
+        ]),
+        brain: brainFor('product.read', 'availability.read', 'order.status.read'),
+        resolver: CONFIRMING,
+        executor: executor(),
+      }),
+    )
+    expect(succeeded.actions.map((action) => action.execution)).toEqual([
+      'succeeded',
+      'succeeded',
+      'succeeded',
+    ])
+    expect(succeeded.handoff).toBeNull()
+
+    const confirming = await runTurn(
+      request({
+        graph: graph([
+          {
+            type: 'action/set',
+            actions: enabled('form.submit', 'email.send', 'booking.reschedule'),
+          },
+        ]),
+        brain: brainFor('form.submit', 'email.send', 'booking.reschedule'),
+        resolver: CONFIRMING,
+      }),
+    )
+    // Assert the policy too: an action §9 or the gate refused for another reason
+    // would come back `denied` and take the handoff down the `capability_exceeded`
+    // branch, which would let this pass for the wrong reason.
+    expect(confirming.actions.map((action) => action.policy)).toEqual([
+      'confirmation_required',
+      'confirmation_required',
+      'confirmation_required',
+    ])
+    expect(confirming.actions.map((action) => action.execution)).toEqual([
+      'not_attempted',
+      'not_attempted',
+      'not_attempted',
+    ])
+    expect(confirming.handoff).toBeNull()
   })
 
   it('separates a denied action from a failed execution (§8)', async () => {
