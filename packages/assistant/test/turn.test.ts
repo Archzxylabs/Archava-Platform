@@ -16,12 +16,13 @@ import type {
   StructuredTruthSubject,
 } from '@archava/knowledge'
 import {
+  actionExecuted,
   runTurn,
   type KnowledgePort,
   type StructuredTruthPort,
   type TurnRequest,
 } from '../src/index.js'
-import type { ActionExecutor } from '../src/execution.js'
+import type { ActionExecutionRequest, ActionExecutor } from '../src/execution.js'
 import type { EntityResolver } from '../src/validation.js'
 
 /**
@@ -241,25 +242,51 @@ function brainWithComponents(components: readonly unknown[]): BrainProvider {
  * Used by the tests that assert an execution actually happened: without one the
  * pipeline is honest about `not_attempted`, which is the right answer but cannot
  * demonstrate §18's executor path.
+ *
+ * It keeps two records, because the two answer different questions. `calls` is
+ * what a test asserting "the executor ran this" wants: the action and its
+ * inputs, and nothing that could drift if the request shape grew. `requests` is
+ * what the de-duplication tests want: the whole request, including the
+ * idempotency key the pipeline derived and the tenant and session it derived it
+ * from — facts that live nowhere else, because the pipeline keeps no store of
+ * the keys it has handed out.
  */
 function executor(
   handler?: (request: { action: string; inputs: Readonly<Record<string, unknown>> }) => void,
 ): ActionExecutor & {
   readonly calls: readonly { action: string; inputs: Readonly<Record<string, unknown>> }[]
+  readonly requests: readonly ActionExecutionRequest[]
 } {
   const calls: { action: string; inputs: Readonly<Record<string, unknown>> }[] = []
+  const requests: ActionExecutionRequest[] = []
   return {
     executorId: 'probe-executor',
     execute(request) {
       const entry = { action: request.action, inputs: request.inputs }
       calls.push(entry)
+      requests.push(request)
       handler?.(entry)
       return Promise.resolve({ status: 'succeeded', output: { ok: true } })
     },
     get calls() {
       return calls
     },
+    get requests() {
+      return requests
+    },
   }
+}
+
+/**
+ * The key the executor was handed for one action, read back off its record.
+ *
+ * Read off the request rather than off the action, because the request is the
+ * thing an executor would actually de-duplicate on: a key recorded on the action
+ * and a key sent over the port could disagree, and only one of them is the
+ * promise the pipeline is making.
+ */
+function keyOf(requests: readonly ActionExecutionRequest[], actionId: string): string | undefined {
+  return requests.find((request) => request.action === actionId)?.idempotencyKey
 }
 
 /** A resolver that answers "exists" for a fixed set of kinds and ids. */
@@ -1104,6 +1131,525 @@ describe('action input validation (§9)', () => {
     expect(outcome.actions[0]?.errorCode).toBe('executor_threw')
     expect(outcome.actions[0]?.retryable).toBe(true)
     expect(outcome.actions[0]?.reason).toBe('store offline')
+  })
+})
+
+/**
+ * The executor's key, and what it is derived from (PRD §18).
+ *
+ * The key is a promise the pipeline makes and an executor keeps: repeat the call
+ * with the same key, and the side effect is not repeated. That only holds if the
+ * key is derived from the intent and from nothing else — not from a clock, not
+ * from state an executor instance holds, and not from the order a model happened
+ * to write its JSON in. A key that read the wall clock would differ on every
+ * retry, so a double submit would double-book; a key that read only the action
+ * id would be the same key for the second booking in a session, so a legitimate
+ * one would be swallowed as a duplicate of the first.
+ */
+describe('idempotency key derivation (§18)', () => {
+  /** A brain that asks for exactly the actions given, with exactly those inputs. */
+  function brainAsking(
+    ...asked: readonly {
+      readonly actionId: string
+      readonly inputs: Readonly<Record<string, unknown>>
+    }[]
+  ): BrainProvider {
+    return {
+      providerId: 'probe-brain',
+      model: 'reference-model',
+      health: { ready: true, reason: null },
+      reply() {
+        return Promise.resolve({
+          text: 'On it.',
+          requestedActions: asked,
+          citations: [],
+          deferToStructuredTruth: false,
+        })
+      },
+    }
+  }
+
+  /** A page offering one L0 read, which is enough to reach the executor. */
+  const readingOffer = (): ContextEvent[] => [
+    { type: 'action/set', actions: enabled('order.status.read') },
+  ]
+
+  it('hands the executor a key at all, and records the same one on the action', async () => {
+    // The key exists so that a port can recognise a repeat. An empty string
+    // satisfies any check that only asks whether a key is present, and two empty
+    // keys are equal — so an executor that kept its promise would collapse every
+    // retry of every action into the first one's side effect.
+    const run = executor()
+    const outcome = await runTurn(
+      request({
+        graph: graph(readingOffer()),
+        brain: brainFor('order.status.read'),
+        executor: run,
+        resolver: CONFIRMING,
+      }),
+    )
+    expect(run.requests).toHaveLength(1)
+    const key = keyOf(run.requests, 'order.status.read')
+    expect(typeof key).toBe('string')
+    expect(key).not.toBe('')
+    // The record an operator reads carries the key that was actually sent.
+    expect(outcome.actions[0]?.idempotencyKey).toBe(key)
+  })
+
+  it('derives the same key when the same turn is replayed', async () => {
+    // The replay is the ordinary case, not the exotic one: the visitor tapped
+    // twice, or the network retried. So the key has to come from the request —
+    // which tenant, which session, which moment, which action, which inputs — and
+    // from nothing an executor holds, which is why the second run here goes to a
+    // second executor and still produces the first run's key.
+    const asked = {
+      graph: graph(readingOffer()),
+      brain: brainFor('order.status.read'),
+      resolver: CONFIRMING,
+    }
+    const first = executor()
+    const second = executor()
+    await runTurn(request({ ...asked, executor: first }))
+    await runTurn(request({ ...asked, executor: second }))
+
+    expect(keyOf(first.requests, 'order.status.read')).toBeDefined()
+    expect(keyOf(second.requests, 'order.status.read')).toBe(
+      keyOf(first.requests, 'order.status.read'),
+    )
+  })
+
+  it('derives a different key for the same action at a different moment', async () => {
+    // `occurredAt` is in the key because the same words an hour later are a
+    // different intent. Without it the second ask would arrive carrying the first
+    // one's key, and an executor doing exactly as promised would refuse the
+    // booking the visitor had just made.
+    const keyAt = async (occurredAt: string): Promise<string | undefined> => {
+      const run = executor()
+      await runTurn(
+        request({
+          graph: graph(readingOffer()),
+          brain: brainFor('order.status.read'),
+          executor: run,
+          resolver: CONFIRMING,
+          occurredAt,
+        }),
+      )
+      return keyOf(run.requests, 'order.status.read')
+    }
+    const morning = await keyAt(OCCURRED_AT)
+    expect(await keyAt('2026-04-01T10:00:00.000Z')).not.toBe(morning)
+  })
+
+  it('derives a different key for the same action in a different session', async () => {
+    // Two guests asking for the same slot are two bookings, and the session is
+    // what tells them apart. A key that stopped at the action id would make the
+    // second look like a duplicate of the first.
+    const keyFor = async (sessionId: string): Promise<string | undefined> => {
+      const run = executor()
+      await runTurn(
+        request({
+          graph: graph(readingOffer()),
+          brain: brainFor('order.status.read'),
+          executor: run,
+          resolver: CONFIRMING,
+          sessionId,
+        }),
+      )
+      return keyOf(run.requests, 'order.status.read')
+    }
+    const mine = await keyFor('sess_1')
+    expect(await keyFor('sess_2')).not.toBe(mine)
+  })
+
+  it('derives a different key for the same action in a different tenant (§23)', async () => {
+    // One tenant's submit must never be recognised as another's, in either
+    // direction: a key that omitted the tenant would let an executor that stores
+    // keys per tenant — the shape every real one takes — hand one guest's
+    // booking attempt to another guest's slot.
+    const keyIn = async (tenantId: string): Promise<string | undefined> => {
+      const run = executor()
+      await runTurn(
+        request({
+          tenantId,
+          graph:
+            tenantId === TENANT
+              ? graph(readingOffer())
+              : foldContextEvents(seedContextGraph(configFor(tenantId), '/rooms'), readingOffer()),
+          brain: brainFor('order.status.read'),
+          executor: run,
+          resolver: CONFIRMING,
+        }),
+      )
+      return keyOf(run.requests, 'order.status.read')
+    }
+    const ours = await keyIn(TENANT)
+    expect(await keyIn('other-hotels')).not.toBe(ours)
+  })
+
+  it('derives a different key for the same action carrying different inputs', async () => {
+    // The inputs are the substance of the intent. Same action, same session, same
+    // moment, a different customer: a different booking, and a key that could not
+    // tell the two apart would let an executor de-duplicate it away.
+    const asked = {
+      graph: graph([{ type: 'action/set', actions: enabled('booking.create') }]),
+      resolver: CONFIRMING,
+      confirmedActionIds: ['booking.create'],
+    }
+    const ours = executor()
+    await runTurn(request({ ...asked, brain: brainFor('booking.create'), executor: ours }))
+    const theirs = executor()
+    await runTurn(
+      request({
+        ...asked,
+        brain: brainAsking({
+          actionId: 'booking.create',
+          inputs: { slotId: 'slot_1', customer: { customerRef: 'cust_other' } },
+        }),
+        executor: theirs,
+      }),
+    )
+    expect(keyOf(theirs.requests, 'booking.create')).not.toBe(
+      keyOf(ours.requests, 'booking.create'),
+    )
+  })
+
+  it('derives a different key for each of two actions in the same turn', async () => {
+    // One key for the whole reply is the simplest thing to get wrong here. The
+    // second action would arrive carrying the first's key, and an executor that
+    // de-duplicates correctly — the thing the key is asking it to do — would
+    // silently skip a side effect the visitor was promised.
+    const run = executor()
+    await runTurn(
+      request({
+        graph: graph([
+          { type: 'action/set', actions: enabled('order.status.read', 'product.read') },
+        ]),
+        brain: brainFor('order.status.read', 'product.read'),
+        executor: run,
+        resolver: CONFIRMING,
+      }),
+    )
+    expect(run.calls.map((call) => call.action)).toEqual(['order.status.read', 'product.read'])
+    expect(keyOf(run.requests, 'product.read')).not.toBe(keyOf(run.requests, 'order.status.read'))
+  })
+
+  it('derives the same key from inputs written in a different order', async () => {
+    // Key order is an artefact of how a value was built, not part of the data:
+    // `{a:1,b:2}` and `{b:2,a:1}` are the same booking. A key that treated them
+    // as two would double-book on any client that reorders its JSON, which is a
+    // client doing nothing wrong.
+    const asked = {
+      graph: graph([{ type: 'action/set', actions: enabled('booking.create') }]),
+      resolver: CONFIRMING,
+      confirmedActionIds: ['booking.create'],
+    }
+    const forwards = executor()
+    await runTurn(request({ ...asked, brain: brainFor('booking.create'), executor: forwards }))
+    const backwards = executor()
+    await runTurn(
+      request({
+        ...asked,
+        brain: brainAsking({
+          actionId: 'booking.create',
+          inputs: { customer: { customerRef: 'cust_9' }, slotId: 'slot_1' },
+        }),
+        executor: backwards,
+      }),
+    )
+    expect(keyOf(backwards.requests, 'booking.create')).toBe(
+      keyOf(forwards.requests, 'booking.create'),
+    )
+  })
+})
+
+/**
+ * Where "allowed" becomes "done" (PRD §18).
+ *
+ * The gate decides whether an action may run; the executor is what makes it have
+ * run. These tests hold the two apart by watching the boundary itself. The
+ * executor is the only thing in the file that can turn `not_attempted` into
+ * anything else, so "was the executor called, and with what" is the question that
+ * separates a pipeline that asked permission from one that reports side effects
+ * nobody performed.
+ */
+describe('the executor boundary (§18)', () => {
+  /** A brain whose inputs are whatever the test wrote, unvalidated in advance. */
+  function brainWithInputs(
+    actionId: string,
+    inputs: Readonly<Record<string, unknown>>,
+  ): BrainProvider {
+    return {
+      providerId: 'probe-brain',
+      model: 'reference-model',
+      health: { ready: true, reason: null },
+      reply() {
+        return Promise.resolve({
+          text: 'On it.',
+          requestedActions: [{ actionId, inputs }],
+          citations: [],
+          deferToStructuredTruth: false,
+        })
+      },
+    }
+  }
+
+  it('never hands the executor an action the gate denied, while running the one it allowed', async () => {
+    // One reply, two boundaries. The visitor asked to see an order and to pay for
+    // it; the client is Act, so the payment is above its tier. The read runs and
+    // the payment never reaches the executor — a denial forwarded anyway would
+    // describe an attempt the tenant never permitted, and an executor would
+    // perform it.
+    const run = executor()
+    const outcome = await runTurn(
+      request({
+        capability: 'act',
+        graph: graph([
+          { type: 'action/set', actions: enabled('order.status.read', 'payment.initiate') },
+        ]),
+        brain: brainFor('order.status.read', 'payment.initiate'),
+        executor: run,
+        resolver: CONFIRMING,
+      }),
+    )
+    expect(run.calls).toEqual([
+      { action: 'order.status.read', inputs: VALID_INPUTS['order.status.read'] },
+    ])
+
+    const payment = outcome.actions.find((action) => action.actionId === 'payment.initiate')
+    expect(payment?.policy).toBe('denied')
+    expect(payment?.execution).toBe('not_attempted')
+    expect(payment?.idempotencyKey).toBeUndefined()
+  })
+
+  it('never hands the executor an action the brain invented', async () => {
+    // The registry is the boundary on what may be asked for, and an executor is a
+    // port to a real system — a booking store, a payment provider. Handing it an
+    // id nobody registered would be asking that system to perform an act no one
+    // has described, priced, or audited.
+    const run = executor()
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('booking.create') }]),
+        brain: brainFor('booking.cancel_with_refund'),
+        executor: run,
+      }),
+    )
+    expect(outcome.actions[0]?.policy).toBe('denied')
+    expect(outcome.actions[0]?.execution).toBe('not_attempted')
+    expect(run.calls).toEqual([])
+    expect(run.requests).toEqual([])
+  })
+
+  it('holds an unconfirmed action out of the executor, and hands it over once it is confirmed', async () => {
+    // §18: capability tier does not override risk rules. `user_confirm` is a gate
+    // in front of the executor, not a note beside it — while the action is
+    // unconfirmed there is nothing for an executor to do, and nothing here may
+    // pretend otherwise.
+    const asked = {
+      graph: graph([{ type: 'action/set', actions: enabled('booking.create') }]),
+      resolver: CONFIRMING,
+    }
+    const unconfirmed = executor()
+    await runTurn(request({ ...asked, brain: brainFor('booking.create'), executor: unconfirmed }))
+    expect(unconfirmed.calls).toEqual([])
+
+    const confirmed = executor()
+    await runTurn(
+      request({
+        ...asked,
+        brain: brainFor('booking.create'),
+        executor: confirmed,
+        confirmedActionIds: ['booking.create'],
+      }),
+    )
+    expect(confirmed.calls).toEqual([
+      { action: 'booking.create', inputs: VALID_INPUTS['booking.create'] },
+    ])
+
+    // The confirmation itself is not an ingredient of the key: the coordinates
+    // above are the ones the unconfirmed turn would have used, so a visitor who
+    // confirms twice produces one key and one booking. What changes the key is
+    // the booking — the same slot for a different customer is a different intent,
+    // and a key that could not tell them apart would de-duplicate it away.
+    const again = executor()
+    await runTurn(
+      request({
+        ...asked,
+        brain: brainFor('booking.create'),
+        executor: again,
+        confirmedActionIds: ['booking.create'],
+      }),
+    )
+    const otherCustomer = executor()
+    await runTurn(
+      request({
+        ...asked,
+        brain: brainWithInputs('booking.create', {
+          slotId: 'slot_1',
+          customer: { customerRef: 'cust_other' },
+        }),
+        executor: otherCustomer,
+        confirmedActionIds: ['booking.create'],
+      }),
+    )
+    expect(keyOf(confirmed.requests, 'booking.create')).toBe(
+      keyOf(again.requests, 'booking.create'),
+    )
+    expect(keyOf(confirmed.requests, 'booking.create')).not.toBe(
+      keyOf(otherCustomer.requests, 'booking.create'),
+    )
+  })
+
+  it('never hands the executor an action whose inputs §9 refused', async () => {
+    // §9 sits between the gate and the executor for the same reason: an order
+    // reference typed as a number is not an order reference, and an executor that
+    // received it would either guess or fail against a real system. The executor
+    // is not called at all — not called and then ignored.
+    const run = executor()
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
+        brain: brainWithInputs('order.status.read', { orderReference: 17 }),
+        executor: run,
+      }),
+    )
+    expect(outcome.actions[0]?.policy).toBe('denied')
+    expect(outcome.actions[0]?.execution).toBe('not_attempted')
+    expect(run.calls).toEqual([])
+    expect(run.requests).toEqual([])
+  })
+
+  it('records an executor that threw as an allowed action that failed to run', async () => {
+    // §8's separation, seen from the executor's side: the gate said yes, the call
+    // threw, and neither fact may be written over the other. The policy verdict
+    // stays `allowed` — the tenant is not misconfigured, the integration is
+    // broken — while the execution is `failed` with a code and a retryability an
+    // operator can act on. The record keeps the key the failed call was sent
+    // with, so a retry of that request is recognisable as the same attempt.
+    const handed: ActionExecutionRequest[] = []
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
+        brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
+        executor: {
+          executorId: 'broken',
+          execute(actionRequest) {
+            handed.push(actionRequest)
+            return Promise.reject(new Error('store offline'))
+          },
+        },
+      }),
+    )
+    expect(outcome.actions[0]?.policy).toBe('allowed')
+    expect(outcome.actions[0]?.execution).toBe('failed')
+    expect(outcome.actions[0]?.errorCode).toBe('executor_threw')
+    expect(outcome.actions[0]?.retryable).toBe(true)
+    expect(outcome.actions[0]?.reason).toBe('store offline')
+    expect(outcome.actions[0]?.idempotencyKey).toBe(handed[0]?.idempotencyKey)
+  })
+
+  it('does not take the turn down when the executor throws', async () => {
+    // A broken integration is an ordinary turn outcome. The visitor asked a
+    // question and is owed an answer; throwing here would turn a booking store
+    // that is down into a blank page, which is a worse failure than the one that
+    // started it. The answer arrives, and the rest of the turn's work stands.
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
+        brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
+        executor: {
+          executorId: 'broken',
+          execute() {
+            throw new Error('store offline')
+          },
+        },
+      }),
+    )
+    expect(outcome.text).toBe('On it.')
+    expect(outcome.actions).toHaveLength(1)
+    expect(outcome.permittedActionIds).toEqual(['order.status.read'])
+  })
+
+  it('treats a thrown value that is not an Error as a failed execution, not a crash', async () => {
+    // Nothing obliges an executor to throw an Error — a rejected promise carrying
+    // a string is a legal port. `error instanceof Error` is false there, and the
+    // catch has to have an answer for it that is not "the turn dies": the failure
+    // is still recorded, with the sentence the pipeline can safely surface.
+    const notAnError = 'the store said nothing useful'
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
+        brain: brainFor('order.status.read'),
+        resolver: CONFIRMING,
+        executor: {
+          executorId: 'rude',
+          execute() {
+            // The pipeline has to answer a port that rejects with something that is not an
+            // Error, so this test cannot reject with an Error to cover it.
+            // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the subject under test
+            return Promise.reject(notAnError)
+          },
+        },
+      }),
+    )
+    expect(outcome.actions[0]?.policy).toBe('allowed')
+    expect(outcome.actions[0]?.execution).toBe('failed')
+    expect(outcome.actions[0]?.errorCode).toBe('executor_threw')
+    expect(outcome.actions[0]?.retryable).toBe(true)
+    expect(outcome.actions[0]?.reason).toBe('The action executor failed.')
+    expect(outcome.text).toBe('On it.')
+  })
+
+  it('folds a success in with its output and its key, and counts nothing else as executed', async () => {
+    // `actionExecuted` is the one question a client can ask about a side effect:
+    // did this happen? It is true only when the gate allowed it and an executor
+    // confirmed it, so the three other shapes in this reply — an action still
+    // waiting for its confirmation, an action the gate refused outright — must
+    // not all read as done. The output is the executor's, and the key on the
+    // record is the key the request carried.
+    const handed: ActionExecutionRequest[] = []
+    const outcome = await runTurn(
+      request({
+        capability: 'act',
+        graph: graph([
+          {
+            type: 'action/set',
+            actions: enabled('booking.create', 'booking.reschedule', 'payment.initiate'),
+          },
+        ]),
+        brain: brainFor('booking.create', 'booking.reschedule', 'payment.initiate'),
+        resolver: CONFIRMING,
+        confirmedActionIds: ['booking.create'],
+        executor: {
+          executorId: 'booking-store',
+          execute(actionRequest) {
+            handed.push(actionRequest)
+            return Promise.resolve({ status: 'succeeded', output: { bookingId: 'book_7' } })
+          },
+        },
+      }),
+    )
+
+    const booking = outcome.actions.find((action) => action.actionId === 'booking.create')
+    expect(booking?.policy).toBe('allowed')
+    expect(booking?.execution).toBe('succeeded')
+    expect(booking?.output).toEqual({ bookingId: 'book_7' })
+    expect(booking?.idempotencyKey).toBe(handed[0]?.idempotencyKey)
+
+    const reschedule = outcome.actions.find((action) => action.actionId === 'booking.reschedule')
+    expect(reschedule?.policy).toBe('confirmation_required')
+    expect(reschedule?.execution).toBe('not_attempted')
+    expect(reschedule?.idempotencyKey).toBeUndefined()
+
+    const payment = outcome.actions.find((action) => action.actionId === 'payment.initiate')
+    expect(payment?.policy).toBe('denied')
+    expect(payment?.execution).toBe('not_attempted')
+
+    expect(
+      outcome.actions.filter((action) => actionExecuted(action)).map((a) => a.actionId),
+    ).toEqual(['booking.create'])
   })
 })
 
