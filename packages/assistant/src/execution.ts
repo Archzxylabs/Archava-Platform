@@ -52,12 +52,13 @@ export interface ActionExecutionRequest {
    */
   readonly inputs: Readonly<Record<string, unknown>>
   /**
-   * Stable across replays of the same attempt. A repeated request carrying the
-   * same key is the same side effect, not a second one — but the caller has to
-   * supply the same `occurredAt` for that to be true, and a turn that reads the
-   * wall clock gets a different key every time. Deduplication is therefore the
-   * executor's job, not this key's: it is carried to a port that can recognise
-   * it, and nothing in this pipeline keeps the set of keys it has seen.
+   * Stable across replays of the *same turn*. A repeated request carrying the
+   * same key is the same attempt, not a second one — but the caller has to
+   * supply the same `occurredAt` for that to be true, so two turns asking the
+   * same thing two minutes apart are two keys and two attempts, as they should
+   * be. Deduplication is the executor's job, not this key's: it is carried to a
+   * port that can recognise it, and nothing in this pipeline keeps the set of
+   * keys it has seen.
    */
   readonly idempotencyKey: string
 }
@@ -124,12 +125,36 @@ export function actionExecuted(action: GatedAction): boolean {
 /**
  * The key that makes a replay a replay.
  *
- * Derived from everything that identifies the *intent*: which tenant, which
+ * Derived from everything that identifies the *attempt*: which tenant, which
  * session, which moment in that session's conversation, which action, and a
  * canonical form of the inputs. Canonical means keys sorted, so two objects
  * carrying the same content but not the same insertion order produce the same
  * key — otherwise `{a:1,b:2}` and `{b:2,a:1}` would read as two different
- * bookings and a double submit would double-book.
+ * bookings and a re-submitted form would duplicate itself.
+ *
+ * What that guarantees is narrower than it looks, and the boundary is
+ * `occurredAt`. Re-running this pipeline with the same request produces the
+ * same key, which is what makes a *same-turn* replay recognisable. It does not
+ * span turns: a confirmation clicked in a later turn carries that turn's
+ * timestamp and therefore a different key — correctly, because a visitor asking
+ * for the same room again tomorrow has made a new request and must not be
+ * refused as a duplicate of the old one. An executor that wants to collapse a
+ * double-clicked confirmation can do so on (tenant, session, action, inputs),
+ * all of which it already has; the key's job is to say "this is the attempt you
+ * already saw", not to decide how long an executor remembers an attempt.
+ *
+ * The parts are framed by JSON rather than joined on a separator. `'|'` is a
+ * character a tenant id, a session id or a timestamp is allowed to contain —
+ * `createSession` trims `tenantId` and nothing more, and a host page passes any
+ * `sessionId` it likes — and a plain join is not length-prefixed, so one part's
+ * delimiter is free to slide the boundary between it and the next. That is not
+ * hypothetical: `tenantId: 'acme|x'` with `sessionId: 's1'` and `tenantId:
+ * 'acme'` with `sessionId: 'x|s1'` produced byte-identical keys, so an executor
+ * doing what it was told would have applied one tenant's side effect to the
+ * other, and anything reading the key back by splitting on `'|'` would file the
+ * record under a tenant that never asked. JSON string escaping is a bijection,
+ * so no part's content can impersonate a boundary, and `JSON` is a format
+ * nothing here has to parse to keep working.
  */
 export function buildIdempotencyKey(request: {
   readonly tenantId: string
@@ -138,14 +163,14 @@ export function buildIdempotencyKey(request: {
   readonly actionId: string
   readonly inputs: Readonly<Record<string, unknown>>
 }): string {
-  const canonical = JSON.stringify(request.inputs, canonicalReplacer)
-  return [
-    request.tenantId,
-    request.sessionId,
-    request.occurredAt,
-    request.actionId,
-    canonical,
-  ].join('|')
+  // One `JSON.stringify` over the whole identifying record, with the same
+  // replacer that canonicalises `inputs` also canonicalising the record's own
+  // keys — so the key does not depend on which order the fields were written in
+  // at the call site either. The inputs are serialised *inside* the frame rather
+  // than alongside it, which keeps a JSON payload from ever being read as a
+  // separator, and is what makes the key a single structure an executor could
+  // hash rather than a sentence it has to trust not to be ambiguous.
+  return JSON.stringify(request, canonicalReplacer)
 }
 
 /**

@@ -31,7 +31,11 @@ import { minorUnitExponent } from '@archava/config'
  * `Intl` is still here, and still doing the half it is actually authoritative
  * for: taking the already-scaled major-unit number and presenting it in the
  * tenant's language (`Rp` grouping, `$` placement). Presentation may vary by ICU
- * dataset; the number being presented may not.
+ * dataset; the number being presented may not — and that includes how many
+ * fraction digits it has, because `Rp 1.438.000,00` is not a different rendering
+ * of the same price, it is a different price with the same digits in it. So the
+ * digit count comes from the exponent alongside the divisor, and `Intl` keeps
+ * only the choices a visitor's language genuinely makes for them.
  */
 
 /** Raised when an amount reaches the formatter that cannot be money at all. */
@@ -73,10 +77,26 @@ export function formatMoney(amountMinor: number, currency: string, locale: strin
   if (!Number.isFinite(amountMinor)) {
     throw new MoneyFormatError(`amount must be a finite number, received ${String(amountMinor)}`)
   }
-  const major = amountMinor / 10 ** minorUnitExponent(currency)
+  const digits = minorUnitExponent(currency)
+  const major = amountMinor / 10 ** digits
   const formatted = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
+    // The exponent decides the scale, so it decides the fraction digit count as
+    // well. That is one rule applied twice, not a second rule: the divisor and
+    // the rendered decimals are the same contract, and a formatter that asked
+    // `Intl` for the second was putting a different authority in charge than the
+    // one it had already trusted for the first. The GitHub runner's ICU dataset
+    // reports two fraction digits for IDR, so the unpinned call printed
+    // `Rp 1.438.000,00` there and `Rp 1.438.000` on the laptop that wrote it —
+    // one stored price, two numbers on screen, decided by the host.
+    //
+    // What stays `Intl`'s is presentation and only presentation: `Rp` versus the
+    // ISO code, dot versus comma grouping, non-breaking versus ordinary space.
+    // Those vary by design. The fraction digit count may not, and pinning both
+    // ends of the range is what makes "zero decimals for IDR" mean zero.
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(major)
   // ICU joins a currency symbol to its amount with a non-breaking space, so the
   // string a shell renders and the string a caller compares against differ by an

@@ -29,7 +29,13 @@
  * is what makes a bug report answerable.
  */
 
-import type { ActionDefinition, ActionPolicy, PolicyResult, RoleName } from '@archava/acl'
+import type {
+  ActionDefinition,
+  ActionPolicy,
+  DenialReason,
+  PolicyResult,
+  RoleName,
+} from '@archava/acl'
 import { maskSensitiveFields, resolveMaskRules } from '@archava/acl'
 import type { CapabilityTierName } from '@archava/config'
 import type { ContextGraph } from '@archava/core'
@@ -337,6 +343,12 @@ function gateAction(
       policy: 'denied',
       execution: 'not_attempted',
       reason: `No action "${actionId}" is registered.`,
+      // The gate's answer to the same question, carried here so the record says
+      // *why* it was denied rather than only that it was. The alternative — an
+      // early return with no `denialReason` — is how a caller downstream has to
+      // fall back on "was it denied at all", and that is the question which
+      // mistakes an invented id for an entitlement problem.
+      denialReason: 'unknown_action',
       inputs,
     }
   }
@@ -506,8 +518,11 @@ async function executeAllowed(
     }
   }
 
-  // Derived from the intent, not from the clock, so a replay of the same turn
-  // carries the same key and a double submit is the same side effect.
+  // Derived from the identifying record, not from the clock, so replaying this
+  // turn produces the same key. Not a store: the pipeline remembers no key it
+  // has issued, so "the same turn twice" collapses onto one attempt and
+  // "the same ask an hour later" is a second, which is what a visitor asking
+  // for something again actually did.
   const idempotencyKey = buildIdempotencyKey({
     tenantId: request.tenantId,
     sessionId: request.sessionId,
@@ -766,6 +781,51 @@ function focusedEntity(graph: ContextGraph): ContextGraph['entities'][number] | 
 }
 
 /**
+ * The denials that are about the client's own authorization envelope.
+ *
+ * `capability_exceeded` is a claim made to an operator, and an operator acts on
+ * it — by raising a tier, enabling an action, or correcting a role. So the set of
+ * denials allowed to produce it has to be exactly the set where those are the
+ * right moves, and "was this action denied" cannot be that set: of the seven
+ * codes in `DENIAL_REASONS`, only three are a statement about the envelope at all.
+ *
+ * - `capability_insufficient` — the action needs a tier this client does not hold.
+ * - `role_not_allowed` — this client's role is not permitted to run it.
+ * - `action_disabled_for_client` — this client's configuration turned it off.
+ *
+ * Each of those is the same shape of sentence: *the entitlements said no, and the
+ * fix is to change the entitlements.* What they are not is any of the following.
+ *
+ * `declined_by_visitor` is a person's decision. Escalating it tells an operator to
+ * fix an entitlement problem when a visitor said no, and the only move it could
+ * prompt is asking the visitor again.
+ *
+ * `action_unavailable_on_page` is the page's own scope. The browser was told it
+ * may highlight and not book; no tier change alters what a page offered.
+ *
+ * `unknown_action` is a defect in the caller — an action id the registry does not
+ * have — and there is no envelope to widen that would make a nonexistent action
+ * exist.
+ *
+ * `admin_action_requires_human` is about the *action's* level, not the client's
+ * envelope. A client at `enterprise` is fully entitled and an `L5` action still
+ * does not run autonomously; calling that `capability_exceeded` would send someone
+ * to raise a tier that was never too low. It stays where it already is — on the
+ * action, beside a sentence that tells the visitor a human must approve.
+ *
+ * A §9 validation refusal arrives by a third route, which is why it needs no name
+ * here: it does not come from the policy gate at all, so it carries no
+ * `denialReason` and matches nothing in this set. That is deliberate. The
+ * alternative — recognising it by parsing the human-readable `reason` — is how a
+ * refusal gets reclassified by someone reworded a sentence months later.
+ */
+const CAPABILITY_DENIALS: ReadonlySet<DenialReason> = new Set<DenialReason>([
+  'capability_insufficient',
+  'role_not_allowed',
+  'action_disabled_for_client',
+])
+
+/**
  * Why this turn escalates, or `null` when it does not.
  *
  * Repeated failure counts failures only, and it counts them in two scopes for
@@ -789,7 +849,16 @@ function handoffReason(
   if (request.handoffRequested === true) {
     return 'visitor_requested'
   }
-  if (actions.some((action) => action.policy === 'denied')) {
+  // The gate's own classification, read as data. A human-readable `reason` is for a
+  // reader and can be reworded without changing what happened; `denialReason` is
+  // what the gate committed to, and it is absent exactly where the gate did not
+  // deny — so a §9 refusal, which is a different component's judgement, cannot
+  // match by accident.
+  if (
+    actions.some(
+      (action) => action.denialReason !== undefined && CAPABILITY_DENIALS.has(action.denialReason),
+    )
+  ) {
     return 'capability_exceeded'
   }
   if (

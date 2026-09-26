@@ -17,6 +17,7 @@ import type {
 } from '@archava/knowledge'
 import {
   actionExecuted,
+  buildIdempotencyKey,
   runTurn,
   type KnowledgePort,
   type StructuredTruthPort,
@@ -856,14 +857,18 @@ describe('the policy gate (§18)', () => {
 
   it('denies an action the brain invented, without taking the turn down', async () => {
     // A model that names an action has not thereby claimed the tier it needs.
+    // The denial is an unknown action id — a defect in the caller, not an
+    // entitlement this client lacks — so it is not a capability handoff either:
+    // no tier change makes an action the registry does not have exist.
     const outcome = await runTurn(
       request({ graph: graph(), brain: brainFor('booking.cancel_with_refund') }),
     )
     expect(outcome.actions).toHaveLength(1)
     expect(outcome.actions[0]?.policy).toBe('denied')
     expect(outcome.actions[0]?.execution).toBe('not_attempted')
+    expect(outcome.actions[0]?.denialReason).toBe('unknown_action')
     expect(outcome.actions[0]?.reason).toContain('No action "booking.cancel_with_refund"')
-    expect(outcome.handoff?.reason).toBe('capability_exceeded')
+    expect(outcome.handoff).toBeNull()
   })
 
   it('holds an unconfirmed L3 action at confirmation_required and does not run it', async () => {
@@ -1364,6 +1369,100 @@ describe('idempotency key derivation (§18)', () => {
       keyOf(forwards.requests, 'booking.create'),
     )
   })
+
+  it('cannot be made to collide by moving the separator across two fields (§23)', () => {
+    // The key used to be a `'|'`-joined string, and `'|'` is a character a tenant
+    // id is allowed to contain: `createSession` trims `tenantId` and validates
+    // nothing else, and a host page passes whatever `sessionId` it likes. So
+    // `tenantId: 'acme|x'` + `sessionId: 's1'` and `tenantId: 'acme'` +
+    // `sessionId: 'x|s1'` produced byte-identical keys — and an executor keeping
+    // its promise would have recognised the second as the first, applying one
+    // tenant's attempt to another tenant's tenant-scoped side effect.
+    //
+    // Asserted through `buildIdempotencyKey` directly, because the pair of keys
+    // is the whole claim. A test that ran these through `runTurn` would be
+    // asserting a tenant mismatch as well, and a tenant that fails to resolve
+    // never reaches the executor at all.
+    const body = {
+      occurredAt: OCCURRED_AT,
+      actionId: 'order.status.read',
+      inputs: { orderReference: 'R-1' },
+    }
+    const ours = buildIdempotencyKey({ ...body, tenantId: 'acme|x', sessionId: 's1' })
+    const theirs = buildIdempotencyKey({ ...body, tenantId: 'acme', sessionId: 'x|s1' })
+    expect(theirs).not.toBe(ours)
+  })
+
+  it('escapes a delimiter a caller smuggled in, so it cannot impersonate a field (§23)', () => {
+    // Not a different separator, which would only move the boundary — the shape
+    // means no field's content can match a boundary at all. A tenant id carrying
+    // its own quotes and a pipe arrives as one tenant name, not two, so a reader
+    // that parses the key back gets the tenant that asked and never the tenant
+    // the id was dressed up to look like.
+    const smuggled = buildIdempotencyKey({
+      tenantId: 'acme"|"other',
+      sessionId: 's1',
+      occurredAt: OCCURRED_AT,
+      actionId: 'order.status.read',
+      inputs: { orderReference: 'R-1' },
+    })
+    // The frame is parsed back rather than matched as text, which is the claim:
+    // the key is one structure, so a reader gets fields and never a phrase a
+    // delimiter could have cut somewhere else. `toStrictEqual` over the whole
+    // record also refuses a key that quietly dropped a field to make the poke
+    // pass — the tenant arriving intact means every part of it arrived.
+    const parsed = JSON.parse(smuggled) as {
+      tenantId: string
+      sessionId: string
+      occurredAt: string
+      actionId: string
+      inputs: { orderReference: string }
+    }
+    expect(parsed).toStrictEqual({
+      tenantId: 'acme"|"other',
+      sessionId: 's1',
+      occurredAt: OCCURRED_AT,
+      actionId: 'order.status.read',
+      inputs: { orderReference: 'R-1' },
+    })
+
+    // And a key is never a valid rendering of a field it does not carry: the
+    // attempt the smuggled id would have impersonated has a different key,
+    // because the tenant is one value and not a phrase a delimiter can cut.
+    const impersonated = buildIdempotencyKey({
+      tenantId: 'acme',
+      sessionId: 's1',
+      occurredAt: OCCURRED_AT,
+      actionId: 'order.status.read',
+      inputs: { orderReference: 'R-1' },
+    })
+    expect(smuggled).not.toBe(impersonated)
+  })
+
+  it('stays stable across a replay of the same turn and only that (§18)', async () => {
+    // The promise, stated with its boundary attached, because the shape of the
+    // key invites a stronger reading than either half of it supports. Same
+    // request, same key — a retry is recognisable as the attempt it retries.
+    // Same words at a later moment is a different key — a visitor asking again
+    // tomorrow has made a new request, and a key that refused to notice would
+    // have an executor answer a new booking with the old one's side effect.
+    const ask = async (occurredAt: string): Promise<string | undefined> => {
+      const run = executor()
+      await runTurn(
+        request({
+          graph: graph(readingOffer()),
+          brain: brainFor('order.status.read'),
+          executor: run,
+          resolver: CONFIRMING,
+          occurredAt,
+        }),
+      )
+      return keyOf(run.requests, 'order.status.read')
+    }
+    const first = await ask(OCCURRED_AT)
+    expect(await ask(OCCURRED_AT)).toBe(first)
+    expect(await ask('2026-04-02T09:00:00.000Z')).not.toBe(first)
+  })
 })
 
 /**
@@ -1718,6 +1817,9 @@ describe('generative UI (§25)', () => {
 
 describe('handoff and events (§26, §27)', () => {
   it('hands over with the story the visitor should not have to repeat', async () => {
+    // The handoff exists because this visitor asked, and the payload is built
+    // from the graph and the turn record — `room-12` from the entity in focus, the
+    // recorded error with its timestamp. §26: no form value ever reaches it.
     const outcome = await runTurn(
       request({
         graph: graph([
@@ -1726,8 +1828,10 @@ describe('handoff and events (§26, §27)', () => {
           { type: 'error/recorded', code: 'booking_slot_unavailable', occurredAt: OCCURRED_AT },
         ]),
         brain: brainFor('order.status.read'),
+        handoffRequested: true,
       }),
     )
+    expect(outcome.handoff?.reason).toBe('visitor_requested')
     expect(outcome.handoff?.summary).toContain('room-12')
     expect(outcome.handoff?.errors).toEqual([
       {
@@ -1943,7 +2047,6 @@ describe('handoff and events (§26, §27)', () => {
       'store_offline',
     )
   })
-
   it('emits nothing for an allowed action that was never attempted', async () => {
     // `allowed` with no executor means no side effect happened. Emitting a
     // success event here is how an assistant comes to report bookings it never
@@ -1967,5 +2070,176 @@ describe('handoff and events (§26, §27)', () => {
     )
     const names = outcome.events.map((event) => event.name)
     expect(names).toEqual(['knowledge_gap'])
+  })
+})
+
+/**
+ * §26 escalation, case by case, because the whole value of `capability_exceeded`
+ * is that an operator can act on it.
+ *
+ * The rule this table pins: only denials about the client's *entitlements* map to
+ * `capability_exceeded`. A visitor's "no", a page's "not offered here", an invented
+ * action id, and a §9 input refusal each mean something a tier change cannot fix,
+ * and each of them used to arrive here as `capability_exceeded` anyway — because
+ * the code asked "was this denied?" instead of "why was this denied?".
+ *
+ * Each case is its own `it` and asserts the handoff reason outright, not merely
+ * that the field is absent. A test that says `toBeUndefined()` on the reason would
+ * still pass if the whole handoff were dropped for a different bug.
+ */
+describe('handoff escalation is keyed to the denial, not to the fact of it (§26)', () => {
+  const escalated = (outcome: Awaited<ReturnType<typeof runTurn>>): void => {
+    expect(outcome.handoff?.reason).toBe('capability_exceeded')
+  }
+  const notEscalated = (outcome: Awaited<ReturnType<typeof runTurn>>): void => {
+    // No handoff at all — not a handoff with some other reason. The distinction
+    // matters: a turn nobody must act on is a turn with nothing on the queue.
+    expect(outcome.handoff).toBeNull()
+  }
+
+  it('escalates an insufficient capability, and says which tier was short', async () => {
+    // The reference case, and the one operator action follows from: the action
+    // needs `transact`, the client is `act`, so the answer is to raise the tier.
+    const outcome = await runTurn(
+      request({
+        capability: 'act',
+        graph: graph([{ type: 'action/set', actions: enabled('payment.initiate') }]),
+        brain: brainFor('payment.initiate'),
+      }),
+    )
+    expect(outcome.actions[0]?.denialReason).toBe('capability_insufficient')
+    escalated(outcome)
+  })
+
+  it('does not escalate a visitor’s own decline — no entitlement can undo it', async () => {
+    // A decline is a person's decision, and it survives the turn that produced it.
+    // `capability_exceeded` here tells an operator to raise a tier that was never
+    // too low; the only thing it could prompt is asking the visitor again, which
+    // is precisely what the decline gate exists to stop.
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
+        brain: brainFor('order.status.read'),
+        declinedActionIds: ['order.status.read'],
+      }),
+    )
+    expect(outcome.actions[0]?.denialReason).toBe('declined_by_visitor')
+    expect(outcome.actions[0]?.policy).toBe('denied')
+    notEscalated(outcome)
+  })
+
+  it('does not escalate an action the page never offered — that is the page’s scope', async () => {
+    // The browser was told it may highlight and not read orders. No tier grants
+    // a tool the host page withheld, so an operator has nothing to change. The
+    // page's offer and the brain's request are deliberately different actions:
+    // name the same one on both sides and the gate has nothing left to refuse,
+    // which turns the case into a §9 refusal and proves nothing about the page.
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('ui.highlight') }]),
+        brain: brainFor('order.status.read'),
+      }),
+    )
+    expect(outcome.actions[0]?.denialReason).toBe('action_unavailable_on_page')
+    notEscalated(outcome)
+  })
+
+  it('does not escalate an invented action id — there is no tier that would make it exist', async () => {
+    const outcome = await runTurn(
+      request({ graph: graph(), brain: brainFor('booking.cancel_with_refund') }),
+    )
+    expect(outcome.actions[0]?.denialReason).toBe('unknown_action')
+    notEscalated(outcome)
+  })
+
+  it('does not escalate a §9 input refusal — the gate permitted it, the payload did not', async () => {
+    // Two different verdicts, deliberately: the gate says the client may run this
+    // action, and validation says nobody could act on *these inputs*. The second
+    // is not an entitlement statement, and it is also the case where
+    // `denialReason` is absent entirely — which is how the code tells a policy
+    // denial from an input refusal without reading a sentence.
+    //
+    // No resolver, which is the point and not an omission: `order.status.read`
+    // carries an entity id, and with no catalog to confirm it the refusal is
+    // §9's own. Supply `CONFIRMING` here and the same action executes, so what
+    // is being held apart is the gate's yes from validation's no — not a tier.
+    const outcome = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions: enabled('order.status.read') }]),
+        brain: brainFor('order.status.read'),
+        executor: executor(),
+      }),
+    )
+    const read = outcome.actions.find((action) => action.actionId === 'order.status.read')
+    expect(read?.policy).toBe('denied')
+    expect(read?.execution).toBe('not_attempted')
+    expect(read?.denialReason).toBeUndefined()
+    notEscalated(outcome)
+  })
+
+  it('does not escalate an L5 action held for a human — the tier was never the problem', async () => {
+    // The one remaining denial code, and the reason it is not in the escalation
+    // set: `admin_action_requires_human` is about the action's level. This client
+    // is on `enterprise`, the top tier, and the action still does not run alone.
+    // Calling that `capability_exceeded` would send an operator to raise a tier
+    // that is already the highest one there is.
+    const outcome = await runTurn(
+      request({
+        capability: 'enterprise',
+        role: 'admin',
+        graph: graph([{ type: 'action/set', actions: enabled('admin.config.update') }]),
+        brain: brainFor('admin.config.update'),
+      }),
+    )
+    expect(outcome.actions[0]?.denialReason).toBe('admin_action_requires_human')
+    notEscalated(outcome)
+  })
+
+  it('keeps repeated_failure at three; two failed executions are not a handoff', async () => {
+    // The threshold still holds after the escalation set narrowed, and the two
+    // halves are asserted together because a narrowed set could easily have
+    // started catching records it was never meant to: a *failed execution* is
+    // not a denial, so reclassifying it as one would put `capability_exceeded`
+    // on a turn where the client was entitled all along and the store was down.
+    const broken: ActionExecutor = {
+      executorId: 'broken',
+      execute: (request): Promise<ActionExecutionResult> =>
+        Promise.resolve({
+          status: 'failed',
+          errorCode: 'store_offline',
+          retryable: true,
+          message: `Store offline for ${request.action}.`,
+        }),
+    }
+    const actions = enabled('product.read', 'availability.read')
+
+    const two = await runTurn(
+      request({
+        graph: graph([{ type: 'action/set', actions }]),
+        brain: brainFor('product.read', 'availability.read'),
+        resolver: CONFIRMING,
+        executor: broken,
+      }),
+    )
+    expect(two.actions.map((action) => action.execution)).toEqual(['failed', 'failed'])
+    expect(two.actions.every((action) => action.denialReason === undefined)).toBe(true)
+    expect(two.handoff).toBeNull()
+
+    const three = await runTurn(
+      request({
+        graph: graph([
+          {
+            type: 'action/set',
+            actions: enabled('product.read', 'availability.read', 'order.status.read'),
+          },
+        ]),
+        brain: brainFor('product.read', 'availability.read', 'order.status.read'),
+        resolver: CONFIRMING,
+        executor: broken,
+      }),
+    )
+    expect(three.actions.map((action) => action.execution)).toEqual(['failed', 'failed', 'failed'])
+    expect(three.actions.every((action) => action.denialReason === undefined)).toBe(true)
+    expect(three.handoff?.reason).toBe('repeated_failure')
   })
 })
