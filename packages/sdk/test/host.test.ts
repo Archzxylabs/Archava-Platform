@@ -68,7 +68,9 @@ function catalog(): ScoutDocument {
     textContent: 'Deluxe Suite',
     attributes: attrs(['data-archava-entity', 'room-1'], ['data-archava-kind', 'room']),
   })
-  const action = node({ attributes: attrs(['data-archava-action', 'add_to_cart'], ['aria-disabled', 'false']) })
+  const action = node({
+    attributes: attrs(['data-archava-action', 'add_to_cart'], ['aria-disabled', 'false']),
+  })
   const alert = node({ attributes: attrs(['data-archava-error', 'rate_unavailable']) })
   return {
     location: { pathname: '/rooms', href: 'https://example.test/rooms' },
@@ -246,7 +248,9 @@ describe('consent as the host drives it', () => {
   it('starts from everything refused and withdraws one domain at a time', () => {
     expect(emptyConsent()).toEqual({ page_context: false, identity: false, analytics: false })
     expect(withoutConsent(emptyConsent(), 'identity')).toEqual(emptyConsent())
-    expect(withoutConsent({ page_context: true, identity: true, analytics: true }, 'identity')).toEqual({
+    expect(
+      withoutConsent({ page_context: true, identity: true, analytics: true }, 'identity'),
+    ).toEqual({
       page_context: true,
       identity: false,
       analytics: true,

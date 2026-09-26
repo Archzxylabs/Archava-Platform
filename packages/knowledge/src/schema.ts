@@ -9,9 +9,7 @@ import { z } from 'zod'
  * is not a knowledge artefact — it is an isolation bug waiting to happen.
  */
 
-const slug = z
-  .string()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be a lowercase kebab-case slug')
+const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be a lowercase kebab-case slug')
 
 const tenantId = slug
 
@@ -61,16 +59,15 @@ export const documentSchema = z.object({
 })
 export type KnowledgeDocument = z.infer<typeof documentSchema>
 
-export const chunkSchema = z
-  .object({
-    id: slug,
-    tenantId,
-    documentId: slug,
-    /** Zero-based position inside the document. */
-    ordinal: z.number().int().min(0),
-    text: nonEmptyString,
-    provenance: provenanceSchema,
-  })
+export const chunkSchema = z.object({
+  id: slug,
+  tenantId,
+  documentId: slug,
+  /** Zero-based position inside the document. */
+  ordinal: z.number().int().min(0),
+  text: nonEmptyString,
+  provenance: provenanceSchema,
+})
 export type KnowledgeChunk = z.infer<typeof chunkSchema>
 
 export const retrievalQuerySchema = z.object({

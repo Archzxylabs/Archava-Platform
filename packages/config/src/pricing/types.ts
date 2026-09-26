@@ -21,7 +21,11 @@ export type EnvironmentName = (typeof ENVIRONMENTS)[number]
 export const INTEGRATION_COMPLEXITIES = ['standard', 'custom', 'advanced', 'enterprise'] as const
 export type IntegrationComplexity = (typeof INTEGRATION_COMPLEXITIES)[number]
 
-export const DESIGN_ADDONS = ['custom_visual_direction', 'advanced_motion_3d', 'premium_avatar_provider'] as const
+export const DESIGN_ADDONS = [
+  'custom_visual_direction',
+  'advanced_motion_3d',
+  'premium_avatar_provider',
+] as const
 export type DesignAddonName = (typeof DESIGN_ADDONS)[number]
 
 export const SUPPORT_TIERS = ['standard', 'priority', 'dedicated_sla'] as const

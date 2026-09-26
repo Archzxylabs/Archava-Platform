@@ -7,12 +7,13 @@ import {
 } from '../src/index.js'
 
 /**
- * §27 names sixteen events and says what they are for. The two properties that
- * matter here are the ones that keep a warehouse honest: every event carries
- * its tenant, and nothing in this module sends anything.
+ * §27 names sixteen events and says what they are for; §18 (V1.1) adds four more
+ * for action outcomes. The two properties that matter here are the ones that
+ * keep a warehouse honest: every event carries its tenant, and nothing in this
+ * module sends anything.
  */
 describe('the event catalogue', () => {
-  it('is the sixteen names the PRD lists, in its order', () => {
+  it('is the twenty names the PRD and §18 list, in their order', () => {
     expect([...ANALYTICS_EVENTS]).toEqual([
       'conversation_started',
       'meaningful_question_answered',
@@ -30,6 +31,13 @@ describe('the event catalogue', () => {
       'knowledge_gap',
       'tool_failure',
       'presence_fallback',
+      // Action outcomes (PRD §18, V1.1). "The policy said no" and "the policy
+      // said yes and the action then failed" are different facts and need
+      // different responses, so they are not one event.
+      'action_denied',
+      'action_confirmation_required',
+      'action_execution_succeeded',
+      'action_execution_failed',
     ])
   })
 

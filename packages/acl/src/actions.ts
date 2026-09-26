@@ -39,13 +39,30 @@ export interface ActionDefinition {
   readonly requiresCapability: CapabilityTierName
   readonly confirmation: ConfirmationMode
   readonly allowedRoles: readonly RoleName[]
-  /** Repeating the call with the same key must not repeat the side effect. */
+  /**
+   * Repeating the call with the same key must not repeat the side effect.
+   *
+   * A promise the executor keeps, not one the pipeline can keep for it: the
+   * idempotency key travels as far as `ActionExecutionRequest` and no further,
+   * because the pipeline has no store to remember the keys it has already
+   * handed out. Every baseline action declares `true`, so every one of them
+   * leans on an executor that actually de-duplicates.
+   */
   readonly idempotent: boolean
   readonly audited: boolean
   /** Fields that must be masked before any model/provider exposure. */
   readonly sensitiveFields: readonly string[]
   readonly description: string
-  /** Required input field names, for the model-facing tool schema. */
+  /**
+   * Input field names the model is told to supply.
+   *
+   * Names, not a contract. Validation keeps its own {@link INPUT_SCHEMAS} in
+   * `packages/assistant/src/validation.ts` and deliberately does not derive from
+   * this list: these strings describe what a prompt may name, while that map
+   * decides what an executor may accept. Collapsing the two would turn "the
+   * registry says the field is called `customer`" into "therefore a booking may
+   * be created without a verified customer".
+   */
   readonly requiredInputs: readonly string[]
   /** Set when the action is retired; the id keeps working. */
   readonly deprecatedIn?: string
@@ -195,8 +212,7 @@ export const BASELINE_ACTIONS: readonly ActionDefinition[] = [
     idempotent: true,
     audited: true,
     sensitiveFields: ['contact'],
-    description:
-      'Escalate to a human agent queue. The human decides; Archava does not.',
+    description: 'Escalate to a human agent queue. The human decides; Archava does not.',
     requiredInputs: ['reason'],
   },
   {
@@ -316,14 +332,7 @@ export const BASELINE_ACTIONS: readonly ActionDefinition[] = [
     allowedRoles: ASSISTANT_ONLY,
     idempotent: true,
     audited: true,
-    sensitiveFields: [
-      'cardNumber',
-      'cvv',
-      'expiry',
-      'cardholderName',
-      'authorization',
-      'otp',
-    ],
+    sensitiveFields: ['cardNumber', 'cvv', 'expiry', 'cardholderName', 'authorization', 'otp'],
     description:
       'Initiate payment. Archava never accepts a client-supplied price as authoritative.',
     requiredInputs: ['paymentMethodId'],
@@ -364,8 +373,7 @@ export const BASELINE_ACTIONS: readonly ActionDefinition[] = [
     idempotent: true,
     audited: true,
     sensitiveFields: ['email', 'phone', 'address'],
-    description:
-      'Change shipping details or account data for an authenticated customer.',
+    description: 'Change shipping details or account data for an authenticated customer.',
     requiredInputs: ['changes'],
   },
 

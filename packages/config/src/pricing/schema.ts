@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SUPPORTED_CURRENCIES } from '../currency.js'
 
 /**
  * Authoritative schema for `config/pricing.v1.json`.
@@ -8,7 +9,13 @@ import { z } from 'zod'
  * failure is a hard error — the caller must fail closed rather than guess.
  */
 
-const currencyCode = z.enum(['USD', 'IDR'])
+/**
+ * The currency a region quotes in and the exponent that scales it are two halves
+ * of one contract, and both come from `SUPPORTED_CURRENCIES`: a region cannot be
+ * priced in a currency the platform has no way to render, and a currency cannot
+ * join the pricebook without also saying how many minor units it has.
+ */
+const currencyCode = z.enum(SUPPORTED_CURRENCIES)
 
 const moneyLineBase = z.object({
   setup: z.number().nonnegative().optional(),

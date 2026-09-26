@@ -11,6 +11,15 @@
  * 2. **Nothing here sends anything.** Emitting an event is the caller's job (a
  *    Trigger.dev workflow, §20), so this package cannot make a network call from
  *    inside a turn.
+ *
+ * On the action events below: an operator reading a dashboard must be able to
+ * tell *"the policy said no"* from *"the policy said yes and the action then
+ * failed"*. Those need different responses — the first is a configuration or
+ * capability problem, the second is a broken integration. Collapsing both into
+ * `tool_failure` made them indistinguishable, which is how a failed booking
+ * ends up looking like a denied permission. They are separate events now, and
+ * `tool_failure` keeps its original meaning: a tool the platform depends on
+ * broke, as opposed to a decision anyone made.
  */
 
 /** The PRD §27 catalogue, verbatim and in order. */
@@ -31,6 +40,13 @@ export const ANALYTICS_EVENTS = [
   'knowledge_gap',
   'tool_failure',
   'presence_fallback',
+  // Action outcomes, separated by PRD §18 (V1.1). See the module header: these
+  // states are genuinely different facts about the world, and a dashboard that
+  // merges them hides the one that needs a human.
+  'action_denied',
+  'action_confirmation_required',
+  'action_execution_succeeded',
+  'action_execution_failed',
 ] as const
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[number]
 
@@ -104,3 +120,11 @@ export const MEANINGFUL_ANSWER_EVENT: AnalyticsEventName = 'meaningful_question_
 export const KNOWLEDGE_GAP_EVENT: AnalyticsEventName = 'knowledge_gap'
 export const PRESENCE_FALLBACK_EVENT: AnalyticsEventName = 'presence_fallback'
 export const TOOL_FAILURE_EVENT: AnalyticsEventName = 'tool_failure'
+/** The policy gate refused an action (PRD §18). Nobody attempted anything. */
+export const ACTION_DENIED_EVENT: AnalyticsEventName = 'action_denied'
+/** The gate said "not yet", and the turn is waiting on a human (PRD §18). */
+export const ACTION_CONFIRMATION_REQUIRED_EVENT: AnalyticsEventName = 'action_confirmation_required'
+/** An executor reported a confirmed side effect (PRD §18, V1.1). */
+export const ACTION_EXECUTION_SUCCEEDED_EVENT: AnalyticsEventName = 'action_execution_succeeded'
+/** An action was allowed, attempted, and the executor reported failure. */
+export const ACTION_EXECUTION_FAILED_EVENT: AnalyticsEventName = 'action_execution_failed'

@@ -330,9 +330,9 @@ describe('parseContextGraph', () => {
   })
 
   it('rejects a graph with no tenant instead of defaulting one', () => {
-    expect(() =>
-      parseContextGraph({ page: { route: '/', kind: 'home', locale: 'id' } }),
-    ).toThrow(/tenantId/)
+    expect(() => parseContextGraph({ page: { route: '/', kind: 'home', locale: 'id' } })).toThrow(
+      /tenantId/,
+    )
   })
 
   it('rejects a form that smuggles a value where a field name belongs', () => {

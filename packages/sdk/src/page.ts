@@ -274,7 +274,9 @@ function sameErrors(left: readonly PageError[], right: readonly PageError[]): bo
     left.length === right.length &&
     left.every((error, index) => {
       const other = right[index]
-      return other !== undefined && error.code === other.code && error.occurredAt === other.occurredAt
+      return (
+        other !== undefined && error.code === other.code && error.occurredAt === other.occurredAt
+      )
     })
   )
 }
@@ -292,10 +294,7 @@ function sameForm(left: PageForm | undefined, right: PageForm | undefined): bool
   )
 }
 
-function sameComparison(
-  left: PageShape['comparison'],
-  right: PageShape['comparison'],
-): boolean {
+function sameComparison(left: PageShape['comparison'], right: PageShape['comparison']): boolean {
   return (
     (left?.entityIds ?? []).join(' ') === (right?.entityIds ?? []).join(' ') &&
     (left?.metric ?? null) === (right?.metric ?? null)

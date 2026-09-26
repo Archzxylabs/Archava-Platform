@@ -13,14 +13,14 @@
  * view-model layer is UI-library-agnostic for the same reason.
  */
 
-export type { Branding } from "@archava/config";
+export type { Branding } from '@archava/config'
 
 export type {
   AnswerBasis,
   GenerativeComponent,
   GenerativeComponentKind,
   TurnOutcome,
-} from "@archava/assistant";
+} from '@archava/assistant'
 
 export {
   describeBlock,
@@ -31,15 +31,16 @@ export {
   type ChatViewOptions,
   type TruthRow,
   type TurnCitation,
-} from "./view.js";
+} from './view.js'
 
 export {
   formatMoney,
   MoneyFormatError,
   currencyFractionDigits,
-} from "./money.js";
+  minorUnitExponent,
+} from './money.js'
 
-export { chatSheet } from "./styles.js";
+export { chatSheet } from './styles.js'
 
 export {
   mount,
@@ -53,4 +54,4 @@ export {
   type ChatMountOptions,
   type ChatNodeLike,
   type ChatRootLike,
-} from "./dom.js";
+} from './dom.js'

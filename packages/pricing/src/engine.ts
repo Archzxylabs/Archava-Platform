@@ -71,12 +71,10 @@ function requireRegion(pricebook: Pricebook, region: RegionCode) {
   return selected
 }
 
-function bundleDiscountPct(
-  pricebook: Pricebook,
-  paidCoreComponentCount: number,
-): number {
+function bundleDiscountPct(pricebook: Pricebook, paidCoreComponentCount: number): number {
   if (paidCoreComponentCount <= 1) return 0
-  if (paidCoreComponentCount === 2) return pricebook.discount_rules.two_core_components_setup_discount_pct
+  if (paidCoreComponentCount === 2)
+    return pricebook.discount_rules.two_core_components_setup_discount_pct
   return pricebook.discount_rules.three_core_components_setup_discount_pct
 }
 
@@ -181,7 +179,9 @@ export class PricingEngine {
     }
 
     const fixedCoreSetup = coreComponents.reduce((sum, component) => sum + component.setup, 0)
-    const paidCoreComponentCount = coreComponents.filter((component) => component.countsTowardBundle).length
+    const paidCoreComponentCount = coreComponents.filter(
+      (component) => component.countsTowardBundle,
+    ).length
     const discountPct = bundleDiscountPct(this.pricebook, paidCoreComponentCount)
     const discountedCoreSetup = fixedCoreSetup * (1 - discountPct / 100)
 
@@ -245,7 +245,9 @@ export class PricingEngine {
 
     if (request.enterpriseIntegrations > 0) {
       if (enterpriseTierLine.kind === 'custom') {
-        drivers.push(`${request.enterpriseIntegrations} enterprise integration(s) require manual scoping`)
+        drivers.push(
+          `${request.enterpriseIntegrations} enterprise integration(s) require manual scoping`,
+        )
         integrations.push({
           complexity: 'enterprise',
           count: request.enterpriseIntegrations,
@@ -254,7 +256,9 @@ export class PricingEngine {
           fromMinimum: false,
         })
       } else {
-        drivers.push(`${request.enterpriseIntegrations} enterprise integration(s) have no pricebook line`)
+        drivers.push(
+          `${request.enterpriseIntegrations} enterprise integration(s) have no pricebook line`,
+        )
         integrations.push({
           complexity: 'enterprise',
           count: request.enterpriseIntegrations,
@@ -292,9 +296,10 @@ export class PricingEngine {
     }
 
     // ---- Step E: one-time total ----------------------------------------
-    const rounding = request.region === 'ID'
-      ? this.pricebook.currency_rounding.ID
-      : this.pricebook.currency_rounding.GLOBAL
+    const rounding =
+      request.region === 'ID'
+        ? this.pricebook.currency_rounding.ID
+        : this.pricebook.currency_rounding.GLOBAL
 
     const installableTotal = discountedCoreSetup + integrationSetupTotal + designAddonFixedTotal
 

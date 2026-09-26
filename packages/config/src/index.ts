@@ -25,13 +25,19 @@ export {
 
 export { loadPricebook, parsePricebook, PricebookError } from './pricing/loader.js'
 
-export {
-  templatesSchema,
-  type Template,
-  type TemplateCatalog,
-} from './templates/schema.js'
+export { templatesSchema, type Template, type TemplateCatalog } from './templates/schema.js'
 
 export { loadTemplates, TemplateRegistry, TemplateError } from './templates/loader.js'
+
+export {
+  SUPPORTED_CURRENCIES,
+  CURRENCY_MINOR_UNIT_EXPONENTS,
+  UnknownCurrencyError,
+  isSupportedCurrency,
+  minorUnitExponent,
+  minorUnitDivisor,
+  type CurrencyCode,
+} from './currency.js'
 
 export {
   REGIONS,

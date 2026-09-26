@@ -81,9 +81,9 @@ describe('rates', () => {
       })
       expect(nightlyAvailability('garden-twin', '2026-10-09')?.available).toBe(false)
       // A closed night reads the same from a stay that spans it.
-      expect(
-        stayAvailability('garden-twin', '2026-10-07', '2026-10-10')?.everyNightAvailable,
-      ).toBe(false)
+      expect(stayAvailability('garden-twin', '2026-10-07', '2026-10-10')?.everyNightAvailable).toBe(
+        false,
+      )
     })
 
     it('leaves a remainder rather than closing, when a group has taken most of a type', () => {

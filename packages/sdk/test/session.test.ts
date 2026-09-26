@@ -92,9 +92,9 @@ describe('the consent gate', () => {
   it('refuses both doors when page context was never granted', () => {
     const refused = createSession({ tenantId: 'client-xyz', consent: { page_context: false } })
 
-    expect(() => refused.observe([{ type: 'page/route', route: '/checkout', kind: 'checkout' }])).toThrow(
-      SdkConsentError,
-    )
+    expect(() =>
+      refused.observe([{ type: 'page/route', route: '/checkout', kind: 'checkout' }]),
+    ).toThrow(SdkConsentError)
     expect(() => refused.readPage(page())).toThrow(SdkConsentError)
 
     // A refusal leaves no trace: the history is what a replay would apply, and
@@ -126,7 +126,9 @@ describe('the consent gate', () => {
     // the log here would rewrite history after the fact, which is the one thing
     // a history must never do.
     expect(session.consent().page_context).toBe(false)
-    expect(() => session.readPage(page({ path: '/checkout', kind: 'checkout' }))).toThrow(SdkConsentError)
+    expect(() => session.readPage(page({ path: '/checkout', kind: 'checkout' }))).toThrow(
+      SdkConsentError,
+    )
     expect(session.graph()).toEqual(held)
     expect(session.history()).toEqual(logged)
   })
@@ -179,7 +181,9 @@ describe('replay identity', () => {
 
     // The first read's events stay with the first read; if the same array were
     // handed over twice, it would grow as the session did.
-    expect(handed.some((event) => event.type === 'page/route' && event.route === '/checkout')).toBe(false)
+    expect(handed.some((event) => event.type === 'page/route' && event.route === '/checkout')).toBe(
+      false,
+    )
     expect(session.history().length).toBeGreaterThan(handed.length)
   })
 })
@@ -213,7 +217,12 @@ describe('masking at the host boundary', () => {
     const session = createSession({ tenantId: 'client-xyz', consent: { page_context: true } })
     session.readPage(
       page({
-        form: { id: 'booking', completedFields: ['password'], pendingFields: [], maskedFields: ['password'] },
+        form: {
+          id: 'booking',
+          completedFields: ['password'],
+          pendingFields: [],
+          maskedFields: ['password'],
+        },
       }),
     )
 

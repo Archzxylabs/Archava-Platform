@@ -17,8 +17,27 @@
       "default_environment": "commerce_booking",
       "recommended_presence": "human",
       "recommended_capability": "act",
-      "pages": ["home", "rooms-or-units", "unit-detail", "experiences", "offers", "gallery", "booking", "faq", "contact"],
-      "modules": ["knowledge", "page_awareness", "recommendations", "availability", "booking", "transactional_email", "handoff", "analytics"],
+      "pages": [
+        "home",
+        "rooms-or-units",
+        "unit-detail",
+        "experiences",
+        "offers",
+        "gallery",
+        "booking",
+        "faq",
+        "contact"
+      ],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "recommendations",
+        "availability",
+        "booking",
+        "transactional_email",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["PMS-or-booking-engine", "Postmark", "Midtrans-or-Stripe"]
     },
     "restaurant": {
@@ -27,7 +46,16 @@
       "recommended_presence": "voice",
       "recommended_capability": "act",
       "pages": ["home", "menu", "offers", "reservation", "events", "faq", "contact"],
-      "modules": ["knowledge", "page_awareness", "menu_recommendation", "reservation", "lead_capture", "transactional_email", "handoff", "analytics"],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "menu_recommendation",
+        "reservation",
+        "lead_capture",
+        "transactional_email",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["reservation-system-or-Cal.com", "Postmark", "Midtrans-if-prepayment"]
     },
     "clinic": {
@@ -36,7 +64,16 @@
       "recommended_presence": "voice",
       "recommended_capability": "act",
       "pages": ["home", "services", "practitioners", "locations", "appointment", "faq", "contact"],
-      "modules": ["knowledge", "page_awareness", "service_matching", "appointment", "lead_capture", "transactional_email", "handoff", "analytics"],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "service_matching",
+        "appointment",
+        "lead_capture",
+        "transactional_email",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["Cal.com-or-clinic-scheduler", "Postmark", "CRM"]
     },
     "real_estate": {
@@ -44,8 +81,27 @@
       "default_environment": "business",
       "recommended_presence": "human",
       "recommended_capability": "act",
-      "pages": ["home", "properties", "property-detail", "developments", "agents", "schedule-viewing", "faq", "contact"],
-      "modules": ["knowledge", "page_awareness", "property_recommendation", "comparison", "lead_qualification", "viewing_booking", "crm", "handoff", "analytics"],
+      "pages": [
+        "home",
+        "properties",
+        "property-detail",
+        "developments",
+        "agents",
+        "schedule-viewing",
+        "faq",
+        "contact"
+      ],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "property_recommendation",
+        "comparison",
+        "lead_qualification",
+        "viewing_booking",
+        "crm",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["CRM", "calendar", "Postmark"]
     },
     "ecommerce": {
@@ -53,8 +109,31 @@
       "default_environment": "commerce_booking",
       "recommended_presence": "human",
       "recommended_capability": "transact",
-      "pages": ["home", "catalog", "product-detail", "cart", "checkout", "account", "order-status", "faq", "support"],
-      "modules": ["knowledge", "page_awareness", "product_recommendation", "comparison", "cart", "checkout", "payment", "receipt", "order_lookup", "post_purchase", "handoff", "analytics"],
+      "pages": [
+        "home",
+        "catalog",
+        "product-detail",
+        "cart",
+        "checkout",
+        "account",
+        "order-status",
+        "faq",
+        "support"
+      ],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "product_recommendation",
+        "comparison",
+        "cart",
+        "checkout",
+        "payment",
+        "receipt",
+        "order_lookup",
+        "post_purchase",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["Shopify-or-WooCommerce-or-Medusa", "payment-gateway", "Postmark"]
     },
     "professional_services": {
@@ -62,8 +141,26 @@
       "default_environment": "business",
       "recommended_presence": "voice",
       "recommended_capability": "act",
-      "pages": ["home", "services", "industries", "case-studies", "team", "book-a-call", "faq", "contact"],
-      "modules": ["knowledge", "page_awareness", "lead_qualification", "booking", "crm", "transactional_email", "handoff", "analytics"],
+      "pages": [
+        "home",
+        "services",
+        "industries",
+        "case-studies",
+        "team",
+        "book-a-call",
+        "faq",
+        "contact"
+      ],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "lead_qualification",
+        "booking",
+        "crm",
+        "transactional_email",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["CRM", "Cal.com", "Postmark"]
     },
     "education": {
@@ -71,8 +168,25 @@
       "default_environment": "business",
       "recommended_presence": "voice",
       "recommended_capability": "act",
-      "pages": ["home", "programs", "program-detail", "instructors", "admissions-or-enrollment", "faq", "contact"],
-      "modules": ["knowledge", "page_awareness", "program_matching", "lead_capture", "booking", "transactional_email", "handoff", "analytics"],
+      "pages": [
+        "home",
+        "programs",
+        "program-detail",
+        "instructors",
+        "admissions-or-enrollment",
+        "faq",
+        "contact"
+      ],
+      "modules": [
+        "knowledge",
+        "page_awareness",
+        "program_matching",
+        "lead_capture",
+        "booking",
+        "transactional_email",
+        "handoff",
+        "analytics"
+      ],
       "common_integrations": ["CRM", "calendar", "Postmark", "LMS-if-existing"]
     }
   },

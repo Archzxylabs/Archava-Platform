@@ -32,9 +32,9 @@ describe('ProviderRegistry', () => {
     expect(() =>
       registry.register(descriptor({ kind: 'embodiment', providerId: 'a' })),
     ).not.toThrow()
-    expect(() =>
-      registry.register(descriptor({ kind: 'embodiment', providerId: 'b' })),
-    ).toThrow(ProviderRegistryError)
+    expect(() => registry.register(descriptor({ kind: 'embodiment', providerId: 'b' }))).toThrow(
+      ProviderRegistryError,
+    )
   })
 
   it('fails closed when a kind was never installed', () => {
@@ -54,8 +54,8 @@ describe('ProviderRegistry', () => {
   })
 
   it('rejects a kind it does not know', () => {
-    expect(() =>
-      new ProviderRegistry([descriptor({ kind: 'teleport' as ProviderDescriptor['kind'] })]),
+    expect(
+      () => new ProviderRegistry([descriptor({ kind: 'teleport' as ProviderDescriptor['kind'] })]),
     ).toThrow(ProviderRegistryError)
   })
 

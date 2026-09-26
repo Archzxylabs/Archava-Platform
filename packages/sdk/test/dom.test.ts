@@ -60,7 +60,10 @@ function entity(id: string, name: string, kind = 'room'): ScoutNode {
 
 function action(name: string, disabled = false): ScoutNode {
   return node({
-    attributes: attrs(['data-archava-action', name], ['aria-disabled', disabled ? 'true' : 'false']),
+    attributes: attrs(
+      ['data-archava-action', name],
+      ['aria-disabled', disabled ? 'true' : 'false'],
+    ),
   })
 }
 
@@ -69,7 +72,11 @@ function field(name: string, checked = false): ScoutNode {
 }
 
 /** A document that answers one selector with nodes and everything else empty. */
-function answering(selector: string, nodes: readonly ScoutNode[], rest: Partial<ScoutDocument> = {}): ScoutDocument {
+function answering(
+  selector: string,
+  nodes: readonly ScoutNode[],
+  rest: Partial<ScoutDocument> = {},
+): ScoutDocument {
   return document({
     querySelectorAll: (s) => (s === selector ? list(...nodes) : list()),
     ...rest,
@@ -106,7 +113,25 @@ describe('readDom', () => {
   })
 
   it('reads visible entities by id and label, with a kind when the host gives one', () => {
-    const read = readDom(answering(DEFAULT_SELECTORS.entity, [entity('room-1', 'Deluxe Suite')]), NOW)
+    const read = readDom(
+      answering(DEFAULT_SELECTORS.entity, [entity('room-1', 'Deluxe Suite')]),
+      NOW,
+    )
+
+    expect(read.entities).toEqual([{ id: 'room-1', name: 'Deluxe Suite', kind: 'room' }])
+  })
+
+  it('reads an aria-label over the card text, which is a name, a summary and controls concatenated', () => {
+    const card = node({
+      id: 'room-1',
+      textContent: 'Deluxe Suite\n  King bed, terrace\n  Compare  Show me',
+      attributes: attrs(
+        ['data-archava-entity', 'room-1'],
+        ['data-archava-kind', 'room'],
+        ['aria-label', 'Deluxe Suite'],
+      ),
+    })
+    const read = readDom(answering(DEFAULT_SELECTORS.entity, [card]), NOW)
 
     expect(read.entities).toEqual([{ id: 'room-1', name: 'Deluxe Suite', kind: 'room' }])
   })

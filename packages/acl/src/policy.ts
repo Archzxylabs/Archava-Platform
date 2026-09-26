@@ -52,6 +52,7 @@ export const DENIAL_REASONS = [
   'capability_insufficient',
   'action_unavailable_on_page',
   'admin_action_requires_human',
+  'declined_by_visitor',
 ] as const
 export type DenialReason = (typeof DENIAL_REASONS)[number]
 
@@ -66,6 +67,20 @@ export interface ActionRequest {
   readonly availableOnPage?: boolean
   /** The visitor confirmed a `user_confirm` action. */
   readonly confirmed?: boolean
+  /**
+   * The visitor declined this action earlier in the session.
+   *
+   * The mirror of `confirmed`, and it exists for the same reason: without it the
+   * gate has nowhere to put a refusal except back into `confirmation_required`,
+   * and an action the visitor said no to is asked again on every later turn.
+   * That is not a confirm loop that converges — nothing changes between turns —
+   * so the visitor is asked once and then left alone.
+   *
+   * A decline is *overridden*, not erased, by a confirmation in the same turn:
+   * changing one's mind must win, and the caller expresses that the same way it
+   * expresses the first confirmation.
+   */
+  readonly declined?: boolean
   /** A human operator approved an L5 action. */
   readonly humanApproved?: boolean
   /** Tenant-level action allow-list, when the client config narrows further. */
@@ -126,10 +141,7 @@ export class ActionPolicy {
         ? ''
         : ` (deprecated in ${action.deprecatedIn}${action.replacedBy === undefined ? '' : `, use "${action.replacedBy}"`})`
 
-    if (
-      request.enabledActionIds !== undefined &&
-      !request.enabledActionIds.includes(action.id)
-    ) {
+    if (request.enabledActionIds !== undefined && !request.enabledActionIds.includes(action.id)) {
       return {
         decision: 'denied',
         action,
@@ -174,6 +186,28 @@ export class ActionPolicy {
       }
     }
 
+    // A refusal, unless this very turn already confirmed it.
+    //
+    // The placement is the whole mechanism. Put this *after* the confirmation
+    // branch and a declined, unconfirmed action answers `confirmation_required`
+    // — which is the re-ask loop this exists to stop, arriving through the back
+    // door. Put it *before* the business-rule denials above and a decline would
+    // relabel an action the visitor was never entitled to as "you said no", which
+    // reads as the visitor's own choice when it was the client's limit.
+    //
+    // So: after the denials that a visitor's refusal cannot soften, before the
+    // questions the refusal is the answer to. `request.confirmed !== true` is what
+    // lets a change of mind win — a confirmation arriving in the same turn skips
+    // this and falls through to the branches below, which are satisfied by it.
+    if (request.declined === true && request.confirmed !== true) {
+      return {
+        decision: 'denied',
+        action,
+        reason: 'declined_by_visitor',
+        message: `"${action.id}" was declined earlier in this session${deprecationNote}.`,
+      }
+    }
+
     if (action.confirmation === 'human_approval' && request.humanApproved !== true) {
       return {
         decision: 'confirmation_required',
@@ -206,6 +240,17 @@ export class ActionPolicy {
    * subset, and the page context can only shrink it.
    */
   availableActionIds(request: Omit<ActionRequest, 'actionId'>): readonly string[] {
+    // `confirmed` and `humanApproved` are forced true because this answers what
+    // the session *could* do, not what it may do unprompted: the tool list the
+    // brain sees is of actions an operator or a visitor could authorise.
+    //
+    // A decline deliberately does not narrow this list. It is session state, and
+    // this is a function of capability, role and the page — the three things that
+    // say what the client in general may do. Folding in what one visitor refused
+    // would make the tool list change with the conversation rather than with the
+    // contract, which is a different function with the same name. A declined
+    // action stays offered and stops at the gate, which is fail-closed: the model
+    // may still name it, and `evaluate` denies it.
     return this.registry
       .list()
       .filter((action) =>

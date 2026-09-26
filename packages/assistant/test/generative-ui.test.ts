@@ -52,9 +52,7 @@ describe('the component registry', () => {
 
 describe('buildComponent', () => {
   it('rejects an invented kind', () => {
-    expect(() => buildComponent({ kind: 'arbitrary_widget', props: {} })).toThrow(
-      GenerativeUIError,
-    )
+    expect(() => buildComponent({ kind: 'arbitrary_widget', props: {} })).toThrow(GenerativeUIError)
   })
 
   it('names the kind when its props are wrong', () => {
@@ -133,10 +131,10 @@ describe('filterComponentsByAllowedActions', () => {
   })
 
   it('keeps every CTA when the gate allowed all of them', () => {
-    const kept = filterComponentsByAllowedActions([cta('booking.create'), cta('cart.item.add')], [
-      'booking.create',
-      'cart.item.add',
-    ])
+    const kept = filterComponentsByAllowedActions(
+      [cta('booking.create'), cta('cart.item.add')],
+      ['booking.create', 'cart.item.add'],
+    )
     expect(kept).toHaveLength(2)
   })
 })

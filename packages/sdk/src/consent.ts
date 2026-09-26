@@ -33,7 +33,9 @@ export const DENIED_CONSENT: ConsentState = {
 }
 
 /** Start from the host's record, defaulting anything it omitted to refused. */
-export function parseConsent(raw: Partial<Record<ConsentDomain, boolean>> | undefined): ConsentState {
+export function parseConsent(
+  raw: Partial<Record<ConsentDomain, boolean>> | undefined,
+): ConsentState {
   const source = raw ?? {}
   return {
     page_context: source.page_context === true,

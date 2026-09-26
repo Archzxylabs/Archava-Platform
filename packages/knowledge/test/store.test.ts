@@ -134,7 +134,9 @@ describe('KnowledgeStore tenant isolation', () => {
 describe('KnowledgeStore provenance', () => {
   it('records source provenance on every chunk', () => {
     const store = new KnowledgeStore()
-    const chunks = store.ingest(doc('acme-hotels', 'checkin-policy', 'Check-in opens at 15:00 daily.'))
+    const chunks = store.ingest(
+      doc('acme-hotels', 'checkin-policy', 'Check-in opens at 15:00 daily.'),
+    )
 
     expect(chunks[0]?.provenance).toMatchObject({
       sourceKind: 'faq',

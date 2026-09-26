@@ -1,10 +1,5 @@
 import { assertTenant, TenantScopeError, type TenantScope } from '@archava/core'
-import type {
-  KnowledgeChunk,
-  KnowledgeDocument,
-  KnowledgeKind,
-  RetrievedChunk,
-} from './schema.js'
+import type { KnowledgeChunk, KnowledgeDocument, KnowledgeKind, RetrievedChunk } from './schema.js'
 import { parseKnowledgeDocument } from './schema.js'
 import { chunkText } from './text.js'
 

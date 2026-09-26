@@ -32,9 +32,72 @@ describe('structured truth vs retrieval', () => {
     }
   })
 
+  it('matches a keyword as a word, not as a substring of one', () => {
+    // "coffee" contains "fee". With substring matching, a visitor asking what
+    // comes with breakfast was routed to the price port and told a live system
+    // holds the answer — for a menu the tenant has already published. The same
+    // collision runs the other way: "included" is not a fee question.
+    expect(requiresStructuredTruth('is coffee included in breakfast?')).toBe(false)
+    expect(requiresStructuredTruth('how much coffee is served at breakfast?')).toBe(false)
+    expect(requiresStructuredTruth('what time is breakfast served?')).toBe(false)
+    // The boundary must not go so far as to stop hearing real money questions:
+    // a word that *is* the keyword is still that question.
+    expect(requiresStructuredTruth('what is the price of the deluxe suite?')).toBe(true)
+    expect(requiresStructuredTruth('is there a fee for an extra bed?')).toBe(true)
+    expect(classifyKnowledgeNeed('berapa biaya tambahan untuk kasur ekstra?').subjects).toContain(
+      'price',
+    )
+  })
+
   it('reports which subjects a question touched', () => {
     expect(classifyKnowledgeNeed('berapa harga kamar deluxe?').subjects).toContain('price')
     expect(classifyKnowledgeNeed('where is my parcel?').subjects).toContain('shipping_status')
+  })
+
+  it('hears an inventory count that never says "stock"', () => {
+    // The visitor's phrasing is the count, not the noun: "how many rooms do you
+    // have" is a stock question, and before the keywords existed it fell through
+    // to retrieval and reached the port never asking it.
+    expect(classifyKnowledgeNeed('how many rooms do you have?').subjects).toContain('stock')
+    expect(classifyKnowledgeNeed('are any rooms left for the 9th?').subjects).toContain('stock')
+    expect(classifyKnowledgeNeed('how many properties do you list?').subjects).toContain('stock')
+    expect(classifyKnowledgeNeed('berapa stok kamar deluxe?').subjects).toContain('stock')
+  })
+
+  it('hears a bookability question that asks in the verb, not the noun', () => {
+    // "What can I book" is an availability question wearing the verb. The
+    // keyword list named the noun ('available'), so the question fell through to
+    // retrieval — where the tenant's published content says nothing about what is
+    // bookable — and came back `basis: 'none'` while the availability snapshot
+    // held exactly the answer.
+    for (const question of [
+      'what can I book this week?',
+      'can I book the treetop suite?',
+      'do you have any rooms free this weekend?',
+    ]) {
+      expect(classifyKnowledgeNeed(question).need).toBe('structured_truth')
+      expect(classifyKnowledgeNeed(question).subjects).toContain('availability')
+    }
+  })
+
+  it('keeps "book" about the visitor’s own reservation out of availability', () => {
+    // The cost of the keywords above. A question about a booking the visitor
+    // already has is a `booking_status` question, and one about how booking works
+    // in general is answered from the tenant's published policy — neither is what
+    // the availability snapshot answers, so neither may be routed there.
+    expect(classifyKnowledgeNeed('is my booking confirmed?').subjects).toEqual(['booking_status'])
+    expect(classifyKnowledgeNeed('how do I book a room?').need).toBe('retrieval_knowledge')
+    expect(classifyKnowledgeNeed('what is your booking policy?').need).toBe('retrieval_knowledge')
+  })
+
+  it('keeps "how many" attached to the thing being counted', () => {
+    // The reason a bare 'how many' is not a keyword: the same question shape
+    // counts nights, and a stay length is answered from the tenant's policy, not
+    // from a room count. Widen the keyword and the port gets asked about stock
+    // it does not need to consult, while the real answer stays in retrieval.
+    const nights = classifyKnowledgeNeed('how many nights can I stay?')
+    expect(nights.subjects).not.toContain('stock')
+    expect(nights.need).toBe('retrieval_knowledge')
   })
 
   it('falls back to the live path for possessive questions whose noun is unlisted', () => {
@@ -51,7 +114,8 @@ describe('retrieveContext', () => {
     tenantId: 'acme-hotels',
     kind: 'policy',
     title: 'Cancellation policy',
-    content: 'Cancellations are free up to 48 hours before check-in. After that one night is charged.',
+    content:
+      'Cancellations are free up to 48 hours before check-in. After that one night is charged.',
     updatedAt: '2026-03-01',
   })
 

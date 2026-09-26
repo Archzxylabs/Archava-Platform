@@ -118,7 +118,9 @@ function hostClock(supplied: (() => string) | undefined): () => string {
 export function init(options: ArchavaInit): Archava {
   const clientId = typeof options.clientId === 'string' ? options.clientId.trim() : ''
   if (clientId.length === 0) {
-    throw new SdkConfigError('Archava.init requires a clientId; a page with no client has no scope.')
+    throw new SdkConfigError(
+      'Archava.init requires a clientId; a page with no client has no scope.',
+    )
   }
 
   const session = createSession({

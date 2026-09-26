@@ -22,9 +22,14 @@ export class TenantScopeError extends Error {
  * or write that crosses a tenant boundary throws rather than returning empty
  * or partial data.
  */
-export function assertTenant<T extends TenantScope>(value: T | null | undefined, expectedTenantId: string): T {
+export function assertTenant<T extends TenantScope>(
+  value: T | null | undefined,
+  expectedTenantId: string,
+): T {
   if (!value) {
-    throw new TenantScopeError(`Missing tenant-scoped value; expected tenant "${expectedTenantId}".`)
+    throw new TenantScopeError(
+      `Missing tenant-scoped value; expected tenant "${expectedTenantId}".`,
+    )
   }
   if (value.tenantId !== expectedTenantId) {
     throw new TenantScopeError(
@@ -35,10 +40,7 @@ export function assertTenant<T extends TenantScope>(value: T | null | undefined,
 }
 
 /** Brand a record as belonging to a tenant. */
-export function scoped<T extends object>(
-  tenantId: string,
-  value: T,
-): T & TenantScope {
+export function scoped<T extends object>(tenantId: string, value: T): T & TenantScope {
   const parsed = tenantIdSchema.parse(tenantId)
   return { ...value, tenantId: parsed }
 }

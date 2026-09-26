@@ -12,7 +12,6 @@ export {
   runTurn,
   projectContextGraph,
   type AnswerBasis,
-  type GatedAction,
   type KnowledgePort,
   type StructuredTruthPort,
   type TurnOutcome,
@@ -35,6 +34,10 @@ export {
 
 export {
   ANALYTICS_EVENTS,
+  ACTION_CONFIRMATION_REQUIRED_EVENT,
+  ACTION_DENIED_EVENT,
+  ACTION_EXECUTION_FAILED_EVENT,
+  ACTION_EXECUTION_SUCCEEDED_EVENT,
   AnalyticsError,
   KNOWLEDGE_GAP_EVENT,
   MEANINGFUL_ANSWER_EVENT,
@@ -57,3 +60,29 @@ export {
   type HandoffErrorRecord,
   type HandoffReason,
 } from './handoff.js'
+
+export {
+  hasInputContract,
+  inputRejectionMessage,
+  validateActionInputs,
+  type ActionInputValidation,
+  type EntityResolver,
+  type InputRejection,
+} from './validation.js'
+
+export {
+  actionExecuted,
+  buildIdempotencyKey,
+  executionFailure,
+  executionSuccess,
+  EXECUTION_STATES,
+  EXECUTION_STATUSES,
+  POLICY_DECISIONS,
+  type ActionExecutionRequest,
+  type ActionExecutionResult,
+  type ActionExecutionStatus,
+  type ActionExecutor,
+  type ExecutionState,
+  type GatedAction,
+  type PolicyDecision,
+} from './execution.js'

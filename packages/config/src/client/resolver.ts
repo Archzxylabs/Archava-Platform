@@ -41,7 +41,10 @@ export class ClientConfigResolver {
   }
 
   /** Effective module set: template modules filtered by client toggles, plus client-only modules. */
-  mergeModules(clientModules: readonly ModuleToggle[], templateModules: readonly string[]): ModuleToggle[] {
+  mergeModules(
+    clientModules: readonly ModuleToggle[],
+    templateModules: readonly string[],
+  ): ModuleToggle[] {
     const clientByName = new Map(clientModules.map((module) => [module.name, module]))
     const merged: ModuleToggle[] = templateModules.map((name) => {
       const override = clientByName.get(name)
@@ -55,8 +58,13 @@ export class ClientConfigResolver {
   }
 
   /** Template common integrations are Standard unless the client declares otherwise. */
-  mergeIntegrations(clientIntegrations: readonly Integration[], templateIntegrations: readonly string[]): Integration[] {
-    const clientByName = new Map(clientIntegrations.map((integration) => [integration.name, integration]))
+  mergeIntegrations(
+    clientIntegrations: readonly Integration[],
+    templateIntegrations: readonly string[],
+  ): Integration[] {
+    const clientByName = new Map(
+      clientIntegrations.map((integration) => [integration.name, integration]),
+    )
     const merged: Integration[] = templateIntegrations
       .filter((name) => !clientByName.has(name))
       .map((name) => ({ name, complexity: 'standard' as const, enabled: true }))
