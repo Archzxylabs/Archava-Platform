@@ -197,6 +197,7 @@ export interface InspectorBlock {
   readonly rejectedComponents: readonly string[]
   readonly withheldCtas: readonly string[]
   readonly permittedActionIds: readonly string[]
+  readonly decisionLines?: readonly string[]
 }
 
 /**
@@ -305,7 +306,12 @@ export function describeBlock(block: ChatBlock): string {
     case 'handoff':
       return block.summary
     case 'inspector':
-      return [...block.notices, ...block.rejectedComponents, ...block.withheldCtas].join('\n')
+      return [
+        ...block.notices,
+        ...block.rejectedComponents,
+        ...block.withheldCtas,
+        ...(block.decisionLines ?? []),
+      ].join('\n')
     default:
       return `unknown block ${JSON.stringify(block satisfies never)}`
   }
@@ -557,13 +563,19 @@ function inspectorBlocks(outcome: TurnOutcome, options: ChatViewOptions): ChatBl
     .filter((component) => component.kind === 'cta' && !drawn.has(component.props.actionId))
     .map((component) => (component.kind === 'cta' ? component.props.actionId : ''))
     .filter((actionId) => actionId.length > 0)
+  const decisionLines =
+    outcome.decision?.traces.map(
+      (trace) =>
+        `Decision ${trace.mode} / ${trace.task}: ${trace.providerId ?? 'none'}; result ${String(trace.candidate?.answer ?? 'none')}; confidence ${trace.confidence ?? 'none'}; ${trace.applied ? 'applied' : 'baseline'}; disagreement ${trace.agreement ?? 'none'}; fallback ${trace.outcome !== 'answered' || (trace.candidate !== null && !trace.applied)}`,
+    ) ?? []
   // An empty inspector is not a view of the withholding — it is an empty card.
   // Nothing withheld means nothing to show, so the panel stays out of the way.
   if (
     outcome.notices.length === 0 &&
     outcome.rejectedComponents.length === 0 &&
     withheldCtas.length === 0 &&
-    outcome.permittedActionIds.length === 0
+    outcome.permittedActionIds.length === 0 &&
+    decisionLines.length === 0
   ) {
     return []
   }
@@ -574,6 +586,7 @@ function inspectorBlocks(outcome: TurnOutcome, options: ChatViewOptions): ChatBl
       rejectedComponents: outcome.rejectedComponents,
       withheldCtas,
       permittedActionIds: outcome.permittedActionIds,
+      decisionLines,
     },
   ]
 }

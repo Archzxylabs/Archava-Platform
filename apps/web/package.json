@@ -17,6 +17,7 @@
     "@archava/config": "workspace:*",
     "@archava/configurator": "workspace:*",
     "@archava/core": "workspace:*",
+    "@archava/decision": "workspace:*",
     "@archava/knowledge": "workspace:*",
     "@archava/pricing": "workspace:*",
     "@archava/reference": "workspace:*",

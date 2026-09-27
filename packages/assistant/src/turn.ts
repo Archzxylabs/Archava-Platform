@@ -38,6 +38,7 @@ import type {
 } from '@archava/acl'
 import { maskSensitiveFields, resolveMaskRules } from '@archava/acl'
 import type { CapabilityTierName } from '@archava/config'
+import type { DecisionOrchestrator } from '@archava/decision'
 import type { ContextGraph } from '@archava/core'
 import { assertTenant } from '@archava/core'
 import type { BrainKnowledgeMode, BrainProvider, BrainReply } from '@archava/adapters'
@@ -64,6 +65,7 @@ import {
   type AnalyticsEvent,
 } from './analytics.js'
 import { buildHandoffContext, type HandoffContext, type HandoffReason } from './handoff.js'
+import { evaluateDecisionTurn, type DecisionObservation } from './decision.js'
 import {
   buildIdempotencyKey,
   type ActionExecutionResult,
@@ -163,6 +165,10 @@ export interface TurnRequest {
   /** True when the visitor asked for a person (PRD §26). */
   readonly handoffRequested?: boolean
   readonly retrievalLimit?: number
+  /** Optional bounded judgment. Absent preserves Foundation V1.1 exactly. */
+  readonly decisionOrchestrator?: DecisionOrchestrator
+  /** Trusted live-system subject candidates for a one-way routing escalation. */
+  readonly decisionTruthCandidates?: readonly StructuredTruthSubject[]
 }
 
 /**
@@ -197,6 +203,12 @@ export interface TurnOutcome {
   /** True when the turn needed knowledge neither live data nor the corpus covered. */
   readonly knowledgeGap: boolean
   readonly handoff: HandoffContext | null
+  readonly decision?: {
+    readonly mode: 'off' | 'shadow' | 'assist'
+    readonly intent: string | null
+    readonly runtimeChanged: boolean
+    readonly traces: readonly DecisionObservation[]
+  }
   readonly events: readonly AnalyticsEvent[]
 }
 
@@ -727,8 +739,9 @@ function brainKnowledgeMode(
  */ function buildHandoff(
   request: TurnRequest,
   actions: readonly GatedAction[],
+  decisionRecommended = false,
 ): HandoffContext | null {
-  const reason = handoffReason(request, actions)
+  const reason = handoffReason(request, actions, decisionRecommended)
   if (reason === null) {
     return null
   }
@@ -845,6 +858,7 @@ const CAPABILITY_DENIALS: ReadonlySet<DenialReason> = new Set<DenialReason>([
 function handoffReason(
   request: TurnRequest,
   actions: readonly GatedAction[],
+  decisionRecommended = false,
 ): HandoffReason | null {
   if (request.handoffRequested === true) {
     return 'visitor_requested'
@@ -867,6 +881,7 @@ function handoffReason(
   ) {
     return 'repeated_failure'
   }
+  if (decisionRecommended) return 'decision_recommended'
   return null
 }
 
@@ -908,6 +923,49 @@ function turnEvents(
   }
   if (outcome.knowledgeGap) {
     events.push(buildEvent({ ...envelope, name: KNOWLEDGE_GAP_EVENT }))
+  }
+
+  for (const trace of outcome.decision?.traces ?? []) {
+    if (trace.outcome === 'not_called') continue
+    const detail = `mode=${trace.mode}; provider=${trace.providerId ?? 'none'}; confidence=${trace.confidence ?? 'none'}; changed=${trace.runtimeChanged}; disagreement=${trace.agreement ?? 'none'}; latencyMs=${trace.latencyMs ?? 'none'}`
+    events.push(
+      buildEvent({
+        ...envelope,
+        name: 'decision_evaluated',
+        subjectId: trace.task,
+        outcome: trace.outcome,
+        note: detail,
+      }),
+    )
+    if (
+      trace.outcome === 'failed' ||
+      trace.outcome === 'timeout' ||
+      trace.outcome === 'malformed'
+    ) {
+      events.push(
+        buildEvent({
+          ...envelope,
+          name: 'decision_provider_failure',
+          subjectId: trace.task,
+          outcome: trace.outcome,
+        }),
+      )
+    }
+    if (trace.reason.includes('below the floor')) {
+      events.push(
+        buildEvent({ ...envelope, name: 'decision_low_confidence', subjectId: trace.task }),
+      )
+    }
+    if (!trace.applied && trace.mode === 'assist') {
+      events.push(
+        buildEvent({
+          ...envelope,
+          name: 'decision_fallback_used',
+          subjectId: trace.task,
+          outcome: trace.outcome,
+        }),
+      )
+    }
   }
 
   // One event per action, chosen by which of the three layers the action stopped
@@ -982,13 +1040,29 @@ function turnEvents(
  */
 export async function runTurn(request: TurnRequest): Promise<TurnOutcome> {
   const graph = assertTenant(request.graph, request.tenantId)
-  const classification = classifyKnowledgeNeed(request.utterance)
-  const truth = await resolveTruth(classification, request)
+  const deterministicClassification = classifyKnowledgeNeed(request.utterance)
   const retrieval = await retrieve(request)
 
   const permitted = permittedActions(request)
   const masked = maskAtBoundary(request)
   const grounded = retrieval.outcome?.context ?? []
+  const assessment = await evaluateDecisionTurn({
+    tenantId: request.tenantId,
+    utterance: request.utterance,
+    locale: graph.page.locale,
+    context: masked.value,
+    classification: deterministicClassification,
+    grounding: grounded,
+    handoffRequested: request.handoffRequested === true,
+    ...(request.decisionOrchestrator === undefined
+      ? {}
+      : { orchestrator: request.decisionOrchestrator }),
+    ...(request.decisionTruthCandidates === undefined
+      ? {}
+      : { structuredTruthCandidates: request.decisionTruthCandidates }),
+  })
+  const classification = assessment.classification
+  const truth = await resolveTruth(classification, request)
   // The brain step is documented as a function of (turn, grounding, permitted
   // actions). This is where `grounding` is chosen — not at line 925, which is
   // now a pass-through.
@@ -1010,20 +1084,38 @@ export async function runTurn(request: TurnRequest): Promise<TurnOutcome> {
   // shown, and for a structured-truth turn `basisOf` never reads it anyway.
   const retrievalForBrain = classification.need === 'structured_truth' ? [] : grounded
 
-  const reply = await request.brain.reply({
-    tenantId: request.tenantId,
-    utterance: request.utterance,
-    locale: graph.page.locale,
-    context: masked.value,
-    grounding: retrievalForBrain,
-    permittedActionIds: permitted,
-    // §5: the brain sees the structured truth it is being asked to answer from,
-    // and which mode that is. §17 requires that structured truth outranks
-    // retrieval, so a brain that cannot see which one it was handed cannot
-    // prefer it.
-    structuredTruth: truth.values,
-    knowledgeMode: brainKnowledgeMode(classification, truth, retrieval),
-  })
+  const reply: BrainReply = assessment.clarify
+    ? {
+        text: graph.page.locale.startsWith('id')
+          ? 'Yang mana yang Anda maksud? Mohon sebutkan nama pilihannya.'
+          : 'Which one do you mean? Please name the option.',
+        requestedActions: [],
+        citations: [],
+        deferToStructuredTruth: false,
+      }
+    : assessment.evidenceInsufficient
+      ? {
+          text: graph.page.locale.startsWith('id')
+            ? 'Saya belum punya bukti yang cukup untuk memastikan klaim itu.'
+            : 'I do not have enough evidence to verify that claim.',
+          requestedActions: [],
+          citations: [],
+          deferToStructuredTruth: false,
+        }
+      : await request.brain.reply({
+          tenantId: request.tenantId,
+          utterance: request.utterance,
+          locale: graph.page.locale,
+          context: masked.value,
+          grounding: retrievalForBrain,
+          permittedActionIds: permitted,
+          // §5: the brain sees the structured truth it is being asked to answer from,
+          // and which mode that is. §17 requires that structured truth outranks
+          // retrieval, so a brain that cannot see which one it was handed cannot
+          // prefer it.
+          structuredTruth: truth.values,
+          knowledgeMode: brainKnowledgeMode(classification, truth, retrieval),
+        })
 
   const actions = await gateActions(reply, request)
   const { components, rejected } = validatedComponents(reply, permitted)
@@ -1036,15 +1128,42 @@ export async function runTurn(request: TurnRequest): Promise<TurnOutcome> {
   // tell the operator the opposite of what happened, so truth that resolved
   // suppresses the gap outright. The two cases left are both real: the port was
   // asked for something it does not own, and the knowledge system had nothing.
-  const knowledgeGap = truth.resolved
-    ? false
-    : retrieval.failed || classification.need === 'structured_truth'
+  const knowledgeGap =
+    assessment.evidenceInsufficient ||
+    (truth.resolved ? false : retrieval.failed || classification.need === 'structured_truth')
+
+  const decision =
+    assessment.run === null
+      ? undefined
+      : {
+          mode: assessment.run.mode,
+          intent: assessment.intent,
+          runtimeChanged: assessment.runtimeChanged,
+          traces: assessment.run.traces.map(
+            (trace): DecisionObservation => ({
+              ...trace,
+              runtimeChanged:
+                trace.task === 'knowledge_routing'
+                  ? classification.need !== deterministicClassification.need
+                  : trace.task === 'clarification'
+                    ? assessment.clarify
+                    : trace.task === 'handoff_recommendation'
+                      ? assessment.recommendHandoff
+                      : trace.task === 'evidence_sufficiency'
+                        ? assessment.evidenceInsufficient
+                        : false,
+            }),
+          ),
+        }
 
   const outcome: Omit<TurnOutcome, 'events'> = {
     tenantId: request.tenantId,
     sessionId: request.sessionId,
     occurredAt: request.occurredAt,
-    basis: basisOf(classification.need, truth.resolved, grounded.length > 0),
+    basis:
+      assessment.clarify || assessment.evidenceInsufficient
+        ? 'none'
+        : basisOf(classification.need, truth.resolved, grounded.length > 0),
     text: reply.text,
     structuredTruth: truth.values,
     citations: reply.citations,
@@ -1054,7 +1173,8 @@ export async function runTurn(request: TurnRequest): Promise<TurnOutcome> {
     actions,
     notices: masked.notices,
     knowledgeGap,
-    handoff: buildHandoff(request, actions),
+    handoff: buildHandoff(request, actions, assessment.recommendHandoff),
+    ...(decision === undefined ? {} : { decision }),
   }
 
   return { ...outcome, events: turnEvents(request, outcome) }

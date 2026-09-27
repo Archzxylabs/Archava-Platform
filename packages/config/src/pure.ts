@@ -40,6 +40,16 @@ export {
   type Capability,
   type Environment,
   type Region,
+  DECISION_TASK_IDS,
+  DECISION_MODES,
+  decisionTaskPolicySchema,
+  decisionTasksSchema,
+  decisionConfigSchema,
+  type DecisionMode,
+  type DecisionTaskId,
+  type DecisionTaskPolicy,
+  type DecisionTasks,
+  type DecisionConfig,
 } from './client/schema.js'
 
 export {

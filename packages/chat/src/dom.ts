@@ -785,6 +785,7 @@ function appendInspector(
   appendItems(builder, details, 'archava-notice', block.notices)
   appendItems(builder, details, 'archava-rejected', block.rejectedComponents)
   appendItems(builder, details, 'archava-withheld', block.withheldCtas)
+  appendItems(builder, details, 'archava-decision', block.decisionLines ?? [])
   const permitted = element(builder, 'p', ['archava-permitted'])
   permitted.textContent =
     block.permittedActionIds.length > 0

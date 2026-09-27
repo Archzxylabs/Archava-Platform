@@ -10,5 +10,5 @@
   // `tools/configurator` declares its own `@archava/*` paths, and having the
   // root resolve them a second, different way would let the two disagree.
   "include": ["*.ts", "tools/**/*.ts"],
-  "exclude": ["node_modules", "packages", "apps", "tools/configurator"]
+  "exclude": ["node_modules", "packages", "apps", "tools/configurator", "tools/decision-eval"]
 }

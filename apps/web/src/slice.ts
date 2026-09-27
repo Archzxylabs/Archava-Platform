@@ -20,7 +20,7 @@
  * then read, never written, per turn.
  */
 import { actionPolicy } from '@archava/acl'
-import { ScriptedBrain } from '@archava/adapters'
+import { ScriptedBrain, type DecisionProvider, type DecisionResult } from '@archava/adapters'
 import {
   runTurn,
   type ActionExecutor,
@@ -28,6 +28,7 @@ import {
   type TurnOutcome,
 } from '@archava/assistant'
 import type { ClientConfig, Entity } from '@archava/config'
+import { DecisionOrchestrator, RuleDecisionProvider } from '@archava/decision'
 import {
   assertTenant,
   foldContextEvents,
@@ -35,7 +36,11 @@ import {
   type ContextEvent,
   type ContextGraph,
 } from '@archava/core'
-import type { RetrievalContextRequest, RetrievalOutcome } from '@archava/knowledge'
+import type {
+  RetrievalContextRequest,
+  RetrievalOutcome,
+  StructuredTruthSubject,
+} from '@archava/knowledge'
 import { retrieveContext } from '@archava/knowledge'
 import {
   REFERENCE_CURRENCY,
@@ -100,6 +105,8 @@ export interface SliceRequest {
   readonly handoffRequested?: boolean
   /** How many chunks retrieval may return. Absent lets the caller's plan decide. */
   readonly retrievalLimit?: number
+  /** Trusted subject hints for a one-way structured-truth escalation. */
+  readonly decisionTruthCandidates?: readonly StructuredTruthSubject[]
 }
 
 /**
@@ -113,6 +120,38 @@ export interface SliceRequest {
  */
 export function createSlice(config: ClientConfig = referenceConfig): Slice {
   const store = buildKnowledgeStore(config)
+  const decisionConfig = config.decision
+  const decisionProvider: DecisionProvider | undefined =
+    decisionConfig?.mode === 'off' || decisionConfig === undefined
+      ? undefined
+      : decisionConfig.provider === 'rule-baseline' ||
+          decisionConfig.provider === 'deterministic-rule'
+        ? new RuleDecisionProvider()
+        : {
+            providerId: decisionConfig.provider ?? 'unconfigured',
+            model: 'unavailable-in-browser',
+            health: {
+              ready: false,
+              reason: 'server decision provider is unavailable in the reference browser',
+            },
+            decide: (): Promise<DecisionResult> =>
+              Promise.reject(new Error('provider unavailable in browser')),
+          }
+  const decisionOrchestrator =
+    decisionConfig === undefined
+      ? undefined
+      : new DecisionOrchestrator({
+          mode: decisionConfig.mode,
+          ...(decisionProvider === undefined ? {} : { provider: decisionProvider }),
+          enabledTasks: Object.entries(decisionConfig.tasks)
+            .filter(([, policy]) => policy?.enabled === true)
+            .map(([task]) => task as keyof typeof decisionConfig.tasks),
+          minimumConfidence: Object.fromEntries(
+            Object.entries(decisionConfig.tasks)
+              .filter(([, policy]) => policy !== undefined)
+              .map(([task, policy]) => [task, policy?.minConfidence]),
+          ),
+        })
 
   const knowledge = {
     // Promise-returning because the port's contract is a promise. The reference
@@ -187,6 +226,10 @@ export function createSlice(config: ClientConfig = referenceConfig): Slice {
           : { handoffRequested: request.handoffRequested }),
         ...(request.resolver === undefined ? {} : { resolver: request.resolver }),
         ...(request.retrievalLimit === undefined ? {} : { retrievalLimit: request.retrievalLimit }),
+        ...(decisionOrchestrator === undefined ? {} : { decisionOrchestrator }),
+        ...(request.decisionTruthCandidates === undefined
+          ? {}
+          : { decisionTruthCandidates: request.decisionTruthCandidates }),
       })
     },
 
