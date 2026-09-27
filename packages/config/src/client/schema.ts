@@ -97,6 +97,72 @@ export const allowedOriginSchema = z
     'must be an absolute origin (or "*")',
   )
 
+/* ------------------------------------------------- Decision Intelligence -- */
+
+/**
+ * The stable Decision Layer task ids.
+ *
+ * The Decision Layer is a bounded, advisory judgement seam beside the
+ * deterministic turn: it never grants permission, never confirms an action and
+ * never proves a fact. The ids are the vocabulary the tenant configuration, the
+ * task catalogue and the offline evaluation corpus all spell the same way. They
+ * are declared here rather than imported so this package stays usable on its
+ * own while the catalogue package is built beside it.
+ */
+export const DECISION_TASK_IDS = [
+  'intent_classification',
+  'knowledge_routing',
+  'clarification',
+  'handoff_recommendation',
+  'evidence_sufficiency',
+] as const
+
+/** How far a tenant lets the Decision Layer go. Default is `off`. */
+export const DECISION_MODES = ['off', 'shadow', 'assist'] as const
+
+/** One task's policy: whether it runs at all, and what confidence it must clear. */
+export const decisionTaskPolicySchema = z.object({
+  enabled: z.boolean(),
+  /** Inclusive lower bound in [0, 1] on the provider's reported confidence. */
+  minConfidence: z.number().min(0).max(1),
+})
+
+/** Per-task policies. An unknown task id is rejected, never ignored. */
+export const decisionTasksSchema = z
+  .object({
+    intent_classification: decisionTaskPolicySchema.optional(),
+    knowledge_routing: decisionTaskPolicySchema.optional(),
+    clarification: decisionTaskPolicySchema.optional(),
+    handoff_recommendation: decisionTaskPolicySchema.optional(),
+    evidence_sufficiency: decisionTaskPolicySchema.optional(),
+  })
+  .strict()
+
+/**
+ * Optional Decision Intelligence configuration. Absent by default, so every
+ * existing tenant config keeps its Foundation V1.1 behaviour exactly: no
+ * provider is asked, and nothing may disagree with the deterministic turn. An
+ * explicit `mode: 'off'` is that same promise written down.
+ */
+export const decisionConfigSchema = z
+  .object({
+    mode: z.enum(DECISION_MODES),
+    /**
+     * Provider id, resolved by the host against the providers it registered.
+     * Deliberately not an enum: provider identity belongs to the adapter that
+     * implements it, and an id this schema has never heard of must resolve to
+     * the deterministic baseline rather than fail the whole config.
+     */
+    provider: slug.optional(),
+    /** Per-task policy. A task left out is a task that is not consulted. */
+    tasks: decisionTasksSchema.default({}),
+  })
+  .strict()
+  .refine(
+    (decision) => decision.mode === 'off' || decision.provider !== undefined,
+    'a provider is required unless mode is "off"',
+  )
+
 export const clientConfigSchema = z
   .object({
     schema_version: z.string().regex(/^\d+\.\d+\.\d+$/),
@@ -121,6 +187,11 @@ export const clientConfigSchema = z
     updatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     /** Marks a config as reference/demo data, never a real business. */
     isReferenceImplementation: z.boolean().default(false),
+    /**
+     * Optional Decision Intelligence policy. Absent means Foundation V1.1:
+     * the deterministic turn alone decides, and no provider is consulted.
+     */
+    decision: decisionConfigSchema.optional(),
   })
   .strict()
 
@@ -135,6 +206,11 @@ export type Presence = z.infer<typeof presenceSchema>
 export type Capability = z.infer<typeof capabilitySchema>
 export type Environment = z.infer<typeof environmentSchema>
 export type Region = z.infer<typeof regionSchema>
+export type DecisionMode = z.infer<typeof DECISION_MODES>
+export type DecisionTaskId = (typeof DECISION_TASK_IDS)[number]
+export type DecisionTaskPolicy = z.infer<typeof decisionTaskPolicySchema>
+export type DecisionTasks = z.infer<typeof decisionTasksSchema>
+export type DecisionConfig = z.infer<typeof decisionConfigSchema>
 
 /** Validate a client config, returning either the parsed value or clear issues. */
 export function parseClientConfig(raw: unknown): ClientConfig {

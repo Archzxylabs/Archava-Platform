@@ -12,8 +12,8 @@ labels mean:
 
 Where a claim below rests on evidence, the evidence is a file path. Where it
 rests on the absence of something, that absence was verified rather than
-assumed: no `package.json` in the workspace declares an external service SDK —
-not one of the thirteen files. The only _runtime_ dependencies in the whole
+assumed: no `package.json` in the workspace declares an external service SDK.
+The only _runtime_ dependencies in the whole
 workspace are `@archava/*` and `zod`; every other dependency in every manifest
 (eslint, prettier, typescript, typescript-eslint, vitest, tsx, esbuild,
 @vitest/coverage-v8, eslint-plugin-react-hooks, @eslint/js) is a
@@ -77,7 +77,7 @@ The mechanism is real and tested; what is behind it is a stand-in.
 
 | Area                                     | What exists                                                                                                                      | What is missing                                                                                                                     |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Conversation (`BrainProvider`)           | `ScriptedBrain` and `ReferenceBrain` — deterministic, keyword-matched, with an explicit fallback sentence                        | a model client. Nothing in the tree calls one                                                                                       |
+| Conversation (`BrainProvider`)           | `ScriptedBrain` and `ReferenceBrain` — deterministic, keyword-matched, with an explicit fallback sentence                        | a generative model client. The Jev decision adapter does not implement conversation                                                 |
 | Retrieval (`KnowledgePort`)              | `buildKnowledgeStore` (`packages/reference/src/knowledge.ts:224`) + `retrieveContext`                                            | a hosted index, embeddings, incremental ingest. The store is in memory and built at request time                                    |
 | Live facts (`StructuredTruthPort`)       | `referenceTruth` (`packages/reference/src/rates.ts:421`) — date-stated fixtures                                                  | a PMS or inventory service. Prices and availability are fixtures, not live                                                          |
 | "Does this id exist?" (`EntityResolver`) | `pageEntityResolver` (`apps/web/src/surface.ts:142`) — answers from the rendered page, kind `pageEntity`                         | a tenant catalog. The resolver can only confirm what the page is already showing                                                    |
@@ -189,3 +189,9 @@ tree — the runnable app must exist, imports must be declared, nothing may
 escape the workspace — but the classifications above are maintained by hand. If
 a row here stops matching the tree, the row is wrong, and the fix is to correct
 the row.
+
+## Decision Intelligence phase status (PRD §39)
+
+**Partially Implemented.** The provider-neutral contract, five-task catalogue, Rule provider, off/shadow/assist orchestrator, tenant schema, turn integration, metadata events, optional reference inspector, offline eval and server-side Jev adapter exist and have offline tests. The Rule provider and reference app remain network-free. Jev transport is mocked in tests; no live request, calibrated Indonesian Jev evaluation, production decision service, retention agreement, or production telemetry sink is present. Laya and all future task seams remain Planned.
+
+`pnpm decision:eval` scores 51 committed cases (22 English, 17 Indonesian, 12 mixed). Current Rule result after fixing deterministic routing gaps: raw judgments 43/255 correct with 157 unanswered; effective routing 50/51 correct and **0 critical structured-truth downgrades among 25 protected cases**. These are Rule/offline measurements, not a Jev quality claim. The evaluator also reports per-label counts and confusion. Ordinary safety tests prove provider confidence cannot bypass capability, confirmation, validation, entity resolution or executor absence. See [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md) and [`JEV_PROVIDER_RESEARCH.md`](JEV_PROVIDER_RESEARCH.md).

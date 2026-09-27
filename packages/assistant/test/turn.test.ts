@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { ActionPolicy } from '@archava/acl'
-import type { BrainProvider, BrainReply, BrainTurn } from '@archava/adapters'
+import type {
+  BrainProvider,
+  BrainReply,
+  BrainTurn,
+  DecisionProvider,
+  Decision,
+} from '@archava/adapters'
+import { DecisionOrchestrator, type DecisionTask } from '@archava/decision'
 import { parseClientConfig, type ClientConfig } from '@archava/config'
 import {
   assertTenant,
@@ -402,6 +409,254 @@ describe('tenant scope (§23)', () => {
     // The tenant's own chunk is what the brain was grounded on — never another
     // tenant's, and never a merged pile of both.
     expect(grounding(brain)).toEqual([chunk('k1')])
+  })
+})
+
+function decisionFor(
+  task: DecisionTask,
+  answer: string | boolean | number,
+  mode: 'shadow' | 'assist' = 'assist',
+  confidence = 1,
+): DecisionOrchestrator {
+  const provider: DecisionProvider = {
+    providerId: 'test-decision',
+    model: 'bounded-test',
+    health: { ready: true },
+    decide: (query) =>
+      Promise.resolve({
+        providerId: 'test-decision',
+        model: 'bounded-test',
+        decisions: query.questions.map(
+          (question): Decision =>
+            ({
+              id: question.id,
+              kind: question.kind,
+              answer,
+              confidence,
+            }) as Decision,
+        ),
+        refused: [],
+      }),
+  }
+  return new DecisionOrchestrator({ mode, provider, enabledTasks: [task] })
+}
+
+describe('Decision Intelligence turn boundary', () => {
+  it('shadow records a disagreement and preserves visible Foundation behavior', async () => {
+    const base = request({
+      utterance: 'Is my booking confirmed?',
+      truth: truth({ confirmed: true }),
+    })
+    const foundation = await runTurn(base)
+    const shadow = await runTurn({
+      ...base,
+      decisionOrchestrator: decisionFor('knowledge_routing', 'retrieval_knowledge', 'shadow'),
+    })
+    expect({
+      text: shadow.text,
+      basis: shadow.basis,
+      actions: shadow.actions,
+      handoff: shadow.handoff,
+    }).toEqual({
+      text: foundation.text,
+      basis: foundation.basis,
+      actions: foundation.actions,
+      handoff: foundation.handoff,
+    })
+    expect(shadow.decision?.traces[0]).toMatchObject({
+      agreement: 'downgraded',
+      applied: false,
+      runtimeChanged: false,
+    })
+  })
+
+  it('cannot downgrade structured truth, even at confidence 1', async () => {
+    const brain = probe()
+    const outcome = await runTurn(
+      request({
+        utterance: 'Is my booking confirmed?',
+        brain,
+        truth: truth({ confirmed: true }),
+        decisionOrchestrator: decisionFor('knowledge_routing', 'retrieval_knowledge'),
+      }),
+    )
+    expect(outcome.basis).toBe('structured_truth')
+    expect(grounding(brain)).toEqual([])
+    expect(outcome.decision?.traces[0]?.applied).toBe(false)
+  })
+
+  it('escalates only to a trusted subject and never treats retrieval as transactional truth', async () => {
+    const brain = probe()
+    const outcome = await runTurn(
+      request({
+        utterance: 'Can I take that one?',
+        brain,
+        knowledge: retrieve({ sourceId: 'stale', text: 'Old price: 10 dollars' }),
+        decisionOrchestrator: decisionFor('knowledge_routing', 'structured_truth'),
+        decisionTruthCandidates: ['availability'],
+      }),
+    )
+    expect(outcome.basis).toBe('none')
+    expect(outcome.knowledgeGap).toBe(true)
+    expect(grounding(brain)).toEqual([])
+    const noSubject = await runTurn(
+      request({
+        utterance: 'Can I take that one?',
+        decisionOrchestrator: decisionFor('knowledge_routing', 'structured_truth'),
+      }),
+    )
+    expect(noSubject.basis).toBe('retrieval')
+    expect(noSubject.decision?.runtimeChanged).toBe(false)
+  })
+
+  it('can ask clarification and veto an unsupported retrieval claim', async () => {
+    const clarify = await runTurn(
+      request({
+        utterance: 'Book that one',
+        decisionOrchestrator: decisionFor('clarification', true),
+      }),
+    )
+    expect(clarify.text).toContain('Yang mana')
+    expect(clarify.actions).toEqual([])
+    const evidence = await runTurn(
+      request({
+        utterance: 'Is breakfast halal certified?',
+        knowledge: retrieve({ sourceId: 'breakfast', text: 'Breakfast is served daily.' }),
+        decisionOrchestrator: decisionFor('evidence_sufficiency', 0),
+      }),
+    )
+    expect(evidence.basis).toBe('none')
+    expect(evidence.knowledgeGap).toBe(true)
+    expect(evidence.text).toContain('belum punya bukti yang cukup')
+  })
+
+  it('cannot suppress mandatory handoff or bypass ActionPolicy', async () => {
+    const handoff = await runTurn(
+      request({
+        handoffRequested: true,
+        decisionOrchestrator: decisionFor('handoff_recommendation', false),
+      }),
+    )
+    expect(handoff.handoff?.reason).toBe('visitor_requested')
+    const action = await runTurn(
+      request({
+        capability: 'assist',
+        graph: graph([{ type: 'action/set', actions: enabled('booking.create') }]),
+        brain: brainFor('booking.create'),
+        decisionOrchestrator: decisionFor('intent_classification', 'purchase_request'),
+        resolver: CONFIRMING,
+        executor: executor(),
+      }),
+    )
+    expect(action.actions[0]).toMatchObject({
+      policy: 'denied',
+      execution: 'not_attempted',
+      denialReason: 'capability_insufficient',
+    })
+  })
+
+  it('confidence 1 cannot bypass transaction tier, confirmation, input validation, or execution', async () => {
+    const decisionOrchestrator = decisionFor('intent_classification', 'purchase_request')
+    const payment = await runTurn(
+      request({
+        capability: 'act',
+        graph: graph([{ type: 'action/set', actions: enabled('payment.initiate') }]),
+        brain: brainFor('payment.initiate'),
+        decisionOrchestrator,
+      }),
+    )
+    expect(payment.actions[0]).toMatchObject({
+      policy: 'denied',
+      execution: 'not_attempted',
+      denialReason: 'capability_insufficient',
+    })
+
+    const bookingGraph = graph([{ type: 'action/set', actions: enabled('booking.create') }])
+    const pending = await runTurn(
+      request({
+        graph: bookingGraph,
+        brain: brainFor('booking.create'),
+        resolver: CONFIRMING,
+        decisionOrchestrator,
+      }),
+    )
+    expect(pending.actions[0]).toMatchObject({
+      policy: 'confirmation_required',
+      execution: 'not_attempted',
+    })
+
+    const invalid = await runTurn(
+      request({
+        graph: bookingGraph,
+        brain: probe({
+          requestedActions: [{ actionId: 'booking.create', inputs: { slotId: 42 } }],
+        }),
+        confirmedActionIds: ['booking.create'],
+        resolver: CONFIRMING,
+        executor: executor(),
+        decisionOrchestrator,
+      }),
+    )
+    expect(invalid.actions[0]?.execution).toBe('not_attempted')
+    expect(invalid.actions[0]?.policy).toBe('denied')
+
+    const unresolved = await runTurn(
+      request({
+        graph: bookingGraph,
+        brain: brainFor('booking.create'),
+        confirmedActionIds: ['booking.create'],
+        executor: executor(),
+        decisionOrchestrator,
+      }),
+    )
+    expect(unresolved.actions[0]?.execution).toBe('not_attempted')
+
+    const noExecutor = await runTurn(
+      request({
+        graph: bookingGraph,
+        brain: brainFor('booking.create'),
+        confirmedActionIds: ['booking.create'],
+        resolver: CONFIRMING,
+        decisionOrchestrator,
+      }),
+    )
+    expect(noExecutor.actions[0]).toMatchObject({ policy: 'allowed', execution: 'not_attempted' })
+  })
+
+  it('projects and redacts data before a provider receives it', async () => {
+    let sent = ''
+    const provider: DecisionProvider = {
+      providerId: 'inspector',
+      model: 'test',
+      health: { ready: true },
+      decide: (query) => {
+        sent = JSON.stringify(query)
+        return Promise.resolve({
+          providerId: 'inspector',
+          model: 'test',
+          decisions: [],
+          refused: query.questions.map((question) => ({ id: question.id, reason: 'skip' })),
+        })
+      },
+    }
+    await runTurn(
+      request({
+        utterance: 'Email me at guest@example.com or call +6281234567890',
+        knowledge: retrieve({
+          sourceId: 'published',
+          text: 'Contact private@example.com for details.',
+        }),
+        decisionOrchestrator: new DecisionOrchestrator({
+          mode: 'shadow',
+          provider,
+          enabledTasks: ['intent_classification'],
+        }),
+      }),
+    )
+    expect(sent).not.toContain('guest@example.com')
+    expect(sent).not.toContain('private@example.com')
+    expect(sent).not.toContain('6281234567890')
+    expect(sent).not.toContain('customerRef')
   })
 })
 

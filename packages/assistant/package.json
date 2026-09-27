@@ -17,6 +17,7 @@
     "@archava/adapters": "workspace:*",
     "@archava/config": "workspace:*",
     "@archava/core": "workspace:*",
+    "@archava/decision": "workspace:*",
     "@archava/knowledge": "workspace:*",
     "zod": "4.1.12"
   },

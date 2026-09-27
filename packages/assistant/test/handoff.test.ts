@@ -33,6 +33,7 @@ describe('handoff reasons', () => {
       'ambiguous_request',
       'transaction_risk',
       'sentiment',
+      'decision_recommended',
     ])
   })
 })

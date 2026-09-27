@@ -109,6 +109,7 @@ const SUBJECT_KEYWORDS: Readonly<Record<StructuredTruthSubject, readonly string[
     'what can i book',
     'can i book',
     'can you book',
+    'could you book',
     'bookable',
     'rooms free',
     'any rooms left',
@@ -120,6 +121,8 @@ const SUBJECT_KEYWORDS: Readonly<Record<StructuredTruthSubject, readonly string[
     'is my booking',
     'confirmed booking',
     'booking confirmation',
+    'pemesanan saya',
+    'booking saya',
   ],
   customer_or_order: [
     'my order',
@@ -138,6 +141,7 @@ const SUBJECT_KEYWORDS: Readonly<Record<StructuredTruthSubject, readonly string[
     'my invoice',
     'payment failed',
     'refund status',
+    'dana pengembalian saya',
   ],
   shipping_status: [
     'shipping status',
