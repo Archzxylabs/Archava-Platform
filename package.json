@@ -25,6 +25,7 @@
     "configurator": "tsx tools/configurator/src/cli.ts",
     "decision:eval": "tsx tools/decision-eval/run-rule.ts",
     "decision:jev-smoke": "tsx tools/decision-eval/live-jev.ts",
+    "decision:jev-eval": "tsx tools/decision-eval/live-jev-eval.ts",
     "structure": "node tools/scripts/structure.mjs",
     "e2e:home": "node tools/e2e/home.mjs",
     "verify": "node tools/scripts/verify.mjs"

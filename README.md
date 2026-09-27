@@ -42,26 +42,30 @@ pnpm e2e:home       # 31 assertions against the served page
 pnpm decision:eval  # 51-case offline Rule provider and routing evaluation
 ```
 
+Optional Jev evaluation stays separate from those commands. After server-side
+credential and data-term review, see [Jev eval readiness](docs/JEV_EVAL_READINESS.md)
+for the explicit synthetic SHADOW command.
+
 ## The one idea
 
 An assistant is only trustworthy if its answers are _checkable_. So the pipeline
 is a sequence of boundaries, each of which holds a port, and each port is an
 interface with implementations you can point at:
 
-| Boundary                        | Port                               | In-tree implementation                               |
-| ------------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| Conversation                    | `BrainProvider`                    | `ScriptedBrain`, `ReferenceBrain` (deterministic)    |
-| Bounded judgment                | `DecisionProvider`                 | `RuleDecisionProvider`; Jev server adapter           |
-| Retrieval                       | `KnowledgePort` / `KnowledgeStore` | `@archava/knowledge`, wired by `buildKnowledgeStore` |
-| Live facts                      | `StructuredTruthPort`              | `referenceTruth` (date-stated fixtures)              |
-| "Does this id exist?"           | `EntityResolver`                   | `pageEntityResolver` (page-scoped)                   |
-| "May I do it, and did it work?" | `ActionExecutor`                   | `pageExecutor` (`ui.*` only)                         |
+| Boundary                        | Port                               | In-tree implementation                                |
+| ------------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| Conversation                    | `BrainProvider`                    | `ScriptedBrain`, `ReferenceBrain` (deterministic)     |
+| Bounded judgment                | `DecisionProvider`                 | `RuleDecisionProvider`; Jev server adapter            |
+| Retrieval                       | `KnowledgePort` / `KnowledgeStore` | `@archava/knowledge`, wired by `buildKnowledgeStore`  |
+| Live facts                      | `StructuredTruthPort`              | `referenceTruth` (date-stated fixtures)               |
+| "Does this id exist?"           | `EntityResolver`                   | `pageEntityResolver` (page-scoped)                    |
+| "May I do it, and did it work?" | `ActionExecutor`                   | `pageExecutor` for UI; mocked Act booking/email ports |
 
-The offline reference does not contact a model, a PMS, or a payment provider. Every port is
-real, and every implementation is an honest in-tree stand-in that says so. Where a
-real system would sit, the code returns a labelled failure rather than a
-plausible-looking success — see `pageExecutor`, which will highlight a room and
-will not book one.
+The offline reference does not contact a model, a PMS, or a payment provider. The
+new server-side Act executors have injected booking and email gateways and
+end-to-end tests with fakes; the browser still does not book or send email. Where
+a real system is absent, the browser returns a labelled non-execution rather
+than a plausible-looking success.
 
 Three rules the tests enforce, because each one is a failure mode that looks like
 a pass:
@@ -81,6 +85,9 @@ a pass:
 
 ```
 packages/acl         query → intent → plan → response, and the ChatEvent vocabulary
+packages/act         server-side booking/email action dispatch
+packages/act-booking authoritative booking gateway and executor port
+packages/act-email   approved-template email gateway and executor port
 packages/assistant   turn assembly: capability gate, §9 input contract, action execution
 packages/adapters    BrainProvider implementations
 packages/decision    bounded task catalogue, Rule provider, orchestrator
@@ -93,7 +100,7 @@ packages/reference   the reference tenant: fixtures, rates, knowledge, brain
 packages/sdk         Archava Web SDK — page awareness graph for a host page
 apps/web             the runnable server and the browser slice
 tools/configurator   `pnpm configurator` — intake → config set, and `POST /api/quote`
-tools/decision-eval  `pnpm decision:eval` — offline labelled evaluation
+tools/decision-eval  offline Rule eval and optional synthetic Jev SHADOW eval
 tools/scripts        structure.mjs, verify.mjs (the honesty gate)
 tools/e2e            home.mjs
 ```
