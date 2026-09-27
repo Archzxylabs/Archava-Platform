@@ -54,6 +54,15 @@ export interface EvaluationCase {
   readonly why: string
 }
 
+/** The utterance corpus has no supplied evidence, so its evidence labels are not scored. */
+export function utteranceOnlyCases(cases: readonly EvaluationCase[]): EvaluationCase[] {
+  return cases.map((item) => {
+    const expected = { ...item.expected }
+    delete expected.evidence_sufficiency
+    return { ...item, expected }
+  })
+}
+
 function entry(
   id: string,
   locale: CorpusLocale,

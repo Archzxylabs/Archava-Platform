@@ -1,4 +1,5 @@
 import { REFERENCE_CORPUS } from './corpus.js'
+import { EVIDENCE_SET_SIZE } from './evidence-set.js'
 
 export interface LiveOptions {
   readonly apiKey: string
@@ -26,8 +27,11 @@ export function parseLiveOptions(args: readonly string[], apiKey: string | undef
     else if (name === '--pace-ms') paceMs = number
     else throw new Error('Unknown live evaluation option.')
   }
-  if (!Number.isInteger(maxCases) || maxCases < 1 || maxCases > REFERENCE_CORPUS.length) {
-    throw new Error(`--max-cases must be 1..${REFERENCE_CORPUS.length}`)
+  // The same limit is passed to both harnesses. Reject an oversized run before
+  // the first reference-corpus call incurs a charge.
+  const maximum = Math.min(REFERENCE_CORPUS.length, EVIDENCE_SET_SIZE)
+  if (!Number.isInteger(maxCases) || maxCases < 1 || maxCases > maximum) {
+    throw new Error(`--max-cases must be 1..${maximum} for both evaluation sets`)
   }
   if (!Number.isInteger(paceMs) || paceMs < 250 || paceMs > 60_000) {
     throw new Error('--pace-ms must be 250..60000')

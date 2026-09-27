@@ -7,7 +7,7 @@ import {
   type DecisionTask,
 } from '@archava/decision'
 import { classifyKnowledgeNeed } from '@archava/knowledge'
-import { REFERENCE_CORPUS, type EvaluationCase } from './corpus.js'
+import { REFERENCE_CORPUS, type EvaluationCase, utteranceOnlyCases } from './corpus.js'
 import { scorePredictions, type EvaluationReport, type Predictions } from './metrics.js'
 
 const SCORED_TASKS: readonly DecisionTask[] = [
@@ -107,15 +107,6 @@ function label(trace: DecisionTrace, candidate: boolean): string | undefined {
   return typeof answer === 'string' ? answer : undefined
 }
 
-/** Evidence labels are unscored: these 51 utterances have no evidence payload. */
-function withoutUnsupportedEvidence(cases: readonly EvaluationCase[]): EvaluationCase[] {
-  return cases.map((item) => {
-    const expected = { ...item.expected }
-    delete expected.evidence_sufficiency
-    return { ...item, expected }
-  })
-}
-
 export async function evaluateShadow(
   provider: DecisionProvider,
   options: ShadowEvaluationOptions = {},
@@ -206,7 +197,7 @@ export async function evaluateShadow(
       await new Promise<void>((resolve) => setTimeout(resolve, paceMs))
     }
   }
-  const scored = withoutUnsupportedEvidence(selected)
+  const scored = utteranceOnlyCases(selected)
   return {
     casesRun: selected.length,
     languages,

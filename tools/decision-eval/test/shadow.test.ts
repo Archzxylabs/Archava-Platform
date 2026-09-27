@@ -7,6 +7,7 @@ import type {
   DecisionResult,
 } from '@archava/adapters'
 import { REFERENCE_CORPUS } from '../corpus.js'
+import { EVIDENCE_SET_SIZE } from '../evidence-set.js'
 import { parseLiveOptions } from '../live-options.js'
 import { evaluateShadow, selectCases } from '../shadow.js'
 
@@ -62,6 +63,12 @@ describe('optional Jev shadow evaluation', () => {
     expect(() => parseLiveOptions([], 'key')).toThrow('--live')
     expect(() => parseLiveOptions(['--live'], undefined)).toThrow('TYPESAFE_API_KEY')
     expect(() => parseLiveOptions(['--live', '--max-cases', '0'], 'key')).toThrow()
+    expect(() =>
+      parseLiveOptions(['--live', '--max-cases', String(EVIDENCE_SET_SIZE + 1)], 'key'),
+    ).toThrow(`1..${EVIDENCE_SET_SIZE}`)
+    expect(
+      parseLiveOptions(['--live', '--max-cases', String(EVIDENCE_SET_SIZE)], 'key').maxCases,
+    ).toBe(EVIDENCE_SET_SIZE)
     expect(() => parseLiveOptions(['--live', '--pace-ms', '0'], 'key')).toThrow()
     expect(parseLiveOptions(['--live', '--max-cases', '3'], 'key')).toMatchObject({
       maxCases: 3,
