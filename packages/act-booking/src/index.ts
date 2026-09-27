@@ -26,3 +26,17 @@ export {
   type RejectedBooking,
   type UnknownBookingOutcome,
 } from './gateway.js'
+
+export {
+  BookingReplayBoundary,
+  type BookingAttemptClaim,
+  type BookingAttemptOwnership,
+  type BookingAttemptRecord,
+  type BookingAttemptSettlement,
+  type BookingAttemptSettlementResult,
+  type BookingAttemptState,
+  type BookingAttemptStore,
+  type BookingReconciliationLookup,
+  type BookingReconciliationPort,
+  type BookingReplayBoundaryOptions,
+} from './replay.js'
