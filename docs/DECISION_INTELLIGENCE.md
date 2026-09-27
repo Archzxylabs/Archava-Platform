@@ -35,3 +35,9 @@ The turn emits `decision_evaluated`, `decision_fallback_used`, `decision_low_con
 Run `pnpm decision:eval` for the offline Rule provider and effective protected routing. The corpus has 51 cases: 22 English, 17 Indonesian, 12 mixed. It includes the six Foundation examples, ambiguity, recommendation/comparison, handoff, unsupported claims, price plus availability, support, purchase, and transactional status. The report prints per-task and per-label accuracy and a separate structured-truth downgrade counter. Rule judgments are intentionally crude; unanswered questions and weak evidence coverage are reported rather than hidden. The score is not a Jev score. The current result is recorded in `docs/BUILD_STATUS.md` after gates.
 
 The optional `pnpm decision:jev-smoke` makes one live call using `TYPESAFE_API_KEY` from the server environment and synthetic text only. It is not part of CI. See [Jev provider research](JEV_PROVIDER_RESEARCH.md) for current official API links, limits, privacy status and mock/live test distinction.
+
+The separate `pnpm decision:jev-eval -- --live --max-cases 5` command runs a
+bounded synthetic multilingual SHADOW evaluation when the owner provisions a
+server key. It scores four tasks; evidence sufficiency remains unscored until
+labelled evidence fixtures exist. It has not been run against live Jev. See
+[`JEV_EVAL_READINESS.md`](JEV_EVAL_READINESS.md).

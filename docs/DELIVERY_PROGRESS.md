@@ -4,9 +4,16 @@
 
 **Target:** Archava v1 commercial readiness in `PRD.md` §34, including the platform needed to operate it.
 
-**Current estimate after audit:** **about 29% weighted delivery coverage. Release readiness: not met.**
+**Current estimate after Act pilot audit:** **about 30% weighted delivery coverage. Release readiness: not met.**
 
 The audited Decision Intelligence line moves from 10% to **65%**: contracts, Rule provider, orchestrator, three modes, five tasks, assistant/reference integration, offline evaluation, metadata observability, and mocked Jev adapter are verified. Live Jev behavior, provider data terms, production telemetry and service hosting remain open. Its 8-point weighted contribution moves from 0.80 to 5.20, lifting the total from **24.15** to **28.55/100 ≈ 29%**. Other lines keep their baseline scores because this phase did not deliver voice, avatar, real Act/Transact workflows, tenant operations, or production deployment. This estimate is independent of the Rule provider's eval accuracy.
+
+The next Act pilot adds tenant-scoped booking and email executor ports plus mocked
+`runTurn` integration. Its estimated line coverage moves from 10% to **25%**,
+adding 1.50 weighted points: **30.05/100 ≈ 30%**. No external booking or
+email was performed, so the PRD §34 real Act gate remains open. The optional
+Jev SHADOW eval command is ready but has not made a live request; Decision
+Intelligence stays at 65%.
 
 This is a planning estimate, not a measurement of code volume, test count, developer productivity, revenue, or runtime performance. The weights express how much each line contributes to the target. A passing unit test raises a line only when it proves the relevant user or operator capability. Mocked integrations and reference fixtures are labelled as such.
 
@@ -44,4 +51,9 @@ The percentage does not replace release gates. In particular, the current PRD §
 
 ## Next review point
 
-After the owner says **all done** for a1–a3, audit their diffs, integrate the Decision Layer, run the full gate set, and revise the Decision Intelligence row based on verified behavior. Reassess other rows only if their actual capabilities changed.
+The next Act review needs a selected booking system, approved tenant template
+catalog and mail provider, durable idempotency/outbox behavior, server-side
+tenant configuration, a real user confirmation surface, and a controlled
+external transaction. The next Jev review needs the optional live synthetic
+evaluation and a data-term decision. Keep both claims separate from offline
+tests and mocked gateways.
