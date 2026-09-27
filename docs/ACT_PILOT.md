@@ -16,6 +16,12 @@ EmailActionExecutor in packages/act-email accepts only templateId and recipient.
 
 Both executors validate their direct-call shape defensively, never echo gateway exceptions, recipient, customer notes, or provider payloads in public error messages, and return a failure for unsupported actions. Direct calls to these ports are not authorization; only the gated runTurn path may use them.
 
+## Replay and recovery hardening
+
+`BookingReplayBoundary` and `EmailOutboxBoundary` are optional server-side wrappers around the corresponding gateway ports. Each claims a tenant-scoped idempotency key before its first write, records the outcome through an injected attempt store, and handles replays without sending a second write. Unknown outcomes remain unknown until a read-only authoritative reconciliation returns a verified booking reference or email acceptance receipt. The booking and email fingerprints are keyed digests; the attempt records do not store customer notes or recipient addresses. A deployment must provide a stable secret, atomic durable claim and settlement operations, and tenant-credentialed reconciliation ports. The in-memory stores in tests demonstrate the interface only.
+
+These wrappers are not yet constructed by a production server host. A caller can still inject a bare gateway into the executor, so durable replay behavior is a deployment requirement, not a claim about the current reference app. Email `accepted` remains distinct from delivered.
+
 ## What the tests prove
 
 packages/act/test/workflow.test.ts exercises the real runTurn path with a fake authoritative entity resolver, booking gateway, template resolver and mail gateway. Assist capability, absent confirmation, missing or invalid resolver, invalid input and missing executor cannot produce a successful side effect. Act plus confirmation and valid entities reaches a fake gateway and records its confirmed/accepted outcome. Package tests cover malformed provider replies, tenant scoping, idempotency replay/conflict, unknown outcomes, and PII-safe output.

@@ -194,14 +194,23 @@ the row.
 
 **Partially Implemented.** The provider-neutral contract, five-task catalogue, Rule provider, off/shadow/assist orchestrator, tenant schema, turn integration, metadata events, optional reference inspector, offline eval and server-side Jev adapter exist and have offline tests. The Rule provider and reference app remain network-free. Jev transport is mocked in tests; no live request, calibrated Indonesian Jev evaluation, production decision service, retention agreement, or production telemetry sink is present. Laya and all future task seams remain Planned.
 
-`pnpm decision:eval` scores 51 committed cases (22 English, 17 Indonesian, 12 mixed). Current Rule result after fixing deterministic routing gaps: raw judgments 43/255 correct with 157 unanswered; effective routing 50/51 correct and **0 critical structured-truth downgrades among 25 protected cases**. These are Rule/offline measurements, not a Jev quality claim. The evaluator also reports per-label counts and confusion. Ordinary safety tests prove provider confidence cannot bypass capability, confirmation, validation, entity resolution or executor absence. See [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md) and [`JEV_PROVIDER_RESEARCH.md`](JEV_PROVIDER_RESEARCH.md).
+`pnpm decision:eval` scores 51 committed utterance cases (22 English, 17 Indonesian, 12 mixed) across four tasks. The Rule provider answered 35/204 expected judgments correctly, with 157 unanswered; effective routing is 50/51 correct and has **0 critical structured-truth downgrades among 25 protected cases**. Evidence sufficiency is excluded from this utterance-only score and evaluated separately on 28 synthetic evidence cases. These are Rule/offline measurements, not a Jev quality claim. The evaluator also reports per-label counts and confusion. Ordinary safety tests prove provider confidence cannot bypass capability, confirmation, validation, entity resolution or executor absence. See [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md) and [`JEV_PROVIDER_RESEARCH.md`](JEV_PROVIDER_RESEARCH.md).
 
 ## Act pilot after delegation audit
 
 **Partially Implemented.** `packages/act-booking` and `packages/act-email` implement narrow server-side `ActionExecutor` ports; `packages/act` dispatches them. A focused `runTurn` test reaches mocked booking and email gateways only after Act capability, user confirmation, input validation, and tenant-scoped entity resolution. Booking success requires an authoritative confirmed reference; email success means accepted for delivery, not delivered. Unknown outcomes fail without an automatic retry. No PMS, mail provider, durable idempotency store, trusted production template catalog, real confirmation UI, or production tenant wiring is connected. This does **not** meet the PRD §34 real Act workflow criterion.
 
-The final offline gate run passed 898 tests across 58 files, `pnpm verify`
-passed all six stages, `pnpm format:check` passed, and the served reference
-browser passed 31/31 E2E checks.
+The original Act pilot gate run passed 898 tests across 58 files. After replay
+and evaluation hardening, the final offline run passed **987 tests across 64
+files**, `pnpm verify` passed all six stages, `pnpm format:check` passed, and the
+served reference browser passed 31/31 E2E checks.
 
-`pnpm decision:jev-eval -- --live --max-cases 5` is a separate optional synthetic SHADOW evaluation command. It has offline mocked tests, but no live Jev result or provider data agreement. Evidence sufficiency is unscored because the 51-case utterance corpus carries no evidence payload. See [`JEV_EVAL_READINESS.md`](JEV_EVAL_READINESS.md).
+`pnpm decision:jev-eval -- --live --max-cases 5` is a separate optional synthetic SHADOW evaluation command. It has offline mocked tests, but no live Jev result or provider data agreement. Evidence sufficiency is scored on a separate 28-case synthetic evidence set; the 51-case utterance corpus still carries no evidence payload. See [`JEV_EVAL_READINESS.md`](JEV_EVAL_READINESS.md).
+
+The new booking replay and email outbox boundaries require an injected durable
+atomic attempt store, stable server-side HMAC key, and read-only authoritative
+reconciliation. Tests use fakes and controlled races. No production server host
+constructs these boundaries yet, and no production store or external booking or
+email provider is connected. A confirmed booking replay currently depends on
+underlying PMS health even when a stored reference exists; this is an
+availability limitation. PRD §34 remains unmet.

@@ -15,6 +15,8 @@ email was performed, so the PRD §34 real Act gate remains open. The optional
 Jev SHADOW eval command is ready but has not made a live request; Decision
 Intelligence stays at 65%.
 
+The later replay/outbox and evidence-evaluation hardening improves offline safety coverage but does not add a real provider, durable store, or live evaluation. The weighted estimate therefore remains about 30% until those external and operational claims can be verified.
+
 This is a planning estimate, not a measurement of code volume, test count, developer productivity, revenue, or runtime performance. The weights express how much each line contributes to the target. A passing unit test raises a line only when it proves the relevant user or operator capability. Mocked integrations and reference fixtures are labelled as such.
 
 ## Baseline scorecard
