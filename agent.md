@@ -1011,3 +1011,11 @@ Before sending a quote, verify all of the following:
 - [ ] Quote validity stated.
 
 If any checkbox fails, fix the quote before presenting it.
+
+---
+
+## 25. Decision Intelligence operating rule (PRD §39)
+
+Decision Intelligence is internal bounded judgment, not a billable tier. Keep `DecisionProvider` separate from `BrainProvider`. Use `RuleDecisionProvider` as the deterministic offline baseline; put Jev only behind the server-side adapter. Existing configs without `decision` remain in Foundation behavior. In `shadow`, no provider result changes a visible turn. In `assist`, only enabled, validated, sufficiently confident tasks may influence the narrow approved seam; structured truth, ActionPolicy, confirmation, input validation and ActionExecutor retain final authority.
+
+Every external request needs tenant scope and projected/redacted context. Do not send raw form values, credentials, payment cards, or unrelated tenant state. Log decision metadata, not payloads. Run `pnpm decision:eval` offline and report critical structured-truth downgrades separately from accuracy. `pnpm decision:jev-smoke` is explicit, server-only, and optional until a credential and data terms exist. For implementation boundaries and live-verification status, use `docs/DECISION_INTELLIGENCE.md` and `docs/JEV_PROVIDER_RESEARCH.md`.
