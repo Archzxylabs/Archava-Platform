@@ -1,32 +1,27 @@
-import type {
-  ActionExecutionRequest,
-  ActionExecutionResult,
-  ActionExecutor,
-} from '@archava/assistant'
-import type { BookingActionExecutor } from '@archava/act-booking'
-import type { EmailActionExecutor } from '@archava/act-email'
-
 /**
- * Server-side dispatch only. The assistant turn pipeline owns capability,
- * role, user confirmation, entity resolution and input validation. A direct
- * call to this port is not an authorization decision.
+ * @archava/act — the server-side Act dispatch and composition seam.
+ *
+ * Two things live here, deliberately separated:
+ *
+ * `ActActionExecutor` dispatches one action id to the one executor that owns it.
+ * It decides nothing about whether the action may run: capability, role, user
+ * confirmation, entity resolution and input validation all happen in the
+ * assistant turn pipeline before a request reaches this port, and a direct call
+ * to it is not an authorization decision.
+ *
+ * `composeTenantActExecutor` is where a deployment states which tenant's
+ * gateways, stores and keys this executor may use. It requires the booking
+ * replay and email outbox wrappers, binds the executor to its tenant, and
+ * refuses an incomplete configuration instead of half-honouring it.
  */
-export class ActActionExecutor implements ActionExecutor {
-  readonly executorId = 'act-dispatch@1'
-
-  constructor(
-    private readonly booking: BookingActionExecutor,
-    private readonly email: EmailActionExecutor,
-  ) {}
-
-  execute(request: ActionExecutionRequest): Promise<ActionExecutionResult> {
-    if (request.action === 'booking.create') return this.booking.execute(request)
-    if (request.action === 'email.send') return this.email.execute(request)
-    return Promise.resolve({
-      status: 'failed',
-      errorCode: 'act_action_not_dispatched',
-      retryable: false,
-      message: 'This Act executor cannot run the requested action.',
-    })
-  }
-}
+export { ActActionExecutor } from './dispatcher.js'
+export {
+  ACT_COMPOSITION_FAULTS,
+  ActCompositionRefusal,
+  type ActCompositionFault,
+} from './guards.js'
+export {
+  composeTenantActExecutor,
+  type TenantActConfiguration,
+  type TenantActExecutor,
+} from './composition.js'

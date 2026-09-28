@@ -160,11 +160,36 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
 
+  packages/act-confirmation:
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
   packages/act-email:
     dependencies:
       '@archava/assistant':
         specifier: workspace:*
         version: link:../assistant
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
+  packages/act-storage:
+    dependencies:
+      '@archava/act-booking':
+        specifier: workspace:*
+        version: link:../act-booking
+      '@archava/act-email':
+        specifier: workspace:*
+        version: link:../act-email
     devDependencies:
       typescript:
         specifier: 5.9.3

@@ -118,8 +118,9 @@ done.
 
 **Data and infrastructure**
 
-- Neon PostgreSQL, pgvector, Drizzle — the persistence layer does not exist at
-  all; there is no database client in the tree
+- Neon PostgreSQL, pgvector, Drizzle — an Act attempt-store migration and SQL
+  adapter exist, but no database driver, deployed database, or general
+  persistence layer is connected
 - Upstash Redis, Cloudflare R2
 - Payload CMS
 - Nx, Next.js, Tailwind + shadcn, Storybook (the web app is a hand-written
@@ -198,7 +199,7 @@ the row.
 
 ## Act pilot after delegation audit
 
-**Partially Implemented.** `packages/act-booking` and `packages/act-email` implement narrow server-side `ActionExecutor` ports; `packages/act` dispatches them. A focused `runTurn` test reaches mocked booking and email gateways only after Act capability, user confirmation, input validation, and tenant-scoped entity resolution. Booking success requires an authoritative confirmed reference; email success means accepted for delivery, not delivered. Unknown outcomes fail without an automatic retry. No PMS, mail provider, durable idempotency store, trusted production template catalog, real confirmation UI, or production tenant wiring is connected. This does **not** meet the PRD §34 real Act workflow criterion.
+**Partially Implemented.** `packages/act-booking` and `packages/act-email` implement narrow server-side `ActionExecutor` ports; `packages/act` dispatches them. A focused `runTurn` test reaches mocked booking and email gateways only after Act capability, user confirmation, input validation, and tenant-scoped entity resolution. Booking success requires an authoritative confirmed reference; email success means accepted for delivery, not delivered. Unknown outcomes fail without an automatic retry. No PMS, mail provider, connected production database, trusted production template catalog, real confirmation UI, or production tenant wiring is connected. This does **not** meet the PRD §34 real Act workflow criterion.
 
 The original Act pilot gate run passed 898 tests across 58 files. After replay
 and evaluation hardening, the final offline run passed **987 tests across 64
@@ -210,7 +211,35 @@ served reference browser passed 31/31 E2E checks.
 The new booking replay and email outbox boundaries require an injected durable
 atomic attempt store, stable server-side HMAC key, and read-only authoritative
 reconciliation. Tests use fakes and controlled races. No production server host
-constructs these boundaries yet, and no production store or external booking or
+constructs these boundaries yet, and no production database or external booking or
 email provider is connected. A confirmed booking replay currently depends on
 underlying PMS health even when a stored reference exists; this is an
 availability limitation. PRD §34 remains unmet.
+
+## Act infrastructure seam after production-readiness delegation
+
+**Implemented as server-side contracts, not connected to a production host.**
+`@archava/act-storage` adds PostgreSQL attempt stores for booking and email,
+with a unique tenant/action/key claim, conditional settlement, a server-held
+digest of the upstream idempotency key, and an optional disposable local
+PostgreSQL verifier. `@archava/act` now exposes a tenant-bound composition
+factory that requires replay and outbox wrappers. `@archava/act-confirmation`
+issues a tenant/session/action/input-bound challenge and delegates one-time
+consumption to an atomic store port. Existing reference behavior remains
+offline. The new packages introduce no external runtime dependency.
+
+The confirmation service has no durable production store or turn-host call site.
+`runTurn` still accepts caller-supplied `confirmedActionIds`; a production host
+must discard browser flags and derive confirmation only from a verified receipt.
+The attempt-store adapter is not connected to a production database. The host
+must preserve the same turn identity and timestamp on retry, retain HMAC keys
+for the whole replay lifetime, keep raw upstream idempotency keys out of
+provider requests/logs, and connect tenant-scoped provider credentials.
+No PMS, mail provider, or real user confirmation flow is connected. PRD §34
+remains unmet. See [`ACT_PILOT.md`](ACT_PILOT.md).
+
+The reconciliation audit passed `pnpm verify` (1,131 tests across 72 files),
+`pnpm format:check`, and the served browser E2E (31/31). The optional local
+PostgreSQL verifier applied the migration, checked 14 invariants, and confirmed
+one winner under separate-process claim and settlement races. These results
+verify the infrastructure seams; they do not certify a production Act workflow.

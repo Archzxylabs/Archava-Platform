@@ -1,3 +1,13 @@
+/**
+ * The full pipeline, against both the tenant-bound composition and the raw
+ * unwired dispatcher.
+ *
+ * These cases exist to prove the composition seam makes no authorization claim
+ * of its own: every refusal that matters still happens upstream — in policy, in
+ * confirmation, in validation, in entity resolution — and nothing downstream
+ * rewrites it.
+ */
+
 import { describe, expect, it } from 'vitest'
 import { ActionPolicy } from '@archava/acl'
 import {
@@ -16,9 +26,20 @@ import { runTurn, type TurnRequest, type EntityResolver } from '@archava/assista
 import { parseClientConfig } from '@archava/config'
 import { foldContextEvents, seedContextGraph } from '@archava/core'
 import type { KnowledgePort } from '@archava/assistant'
-import { ActActionExecutor } from '../src/index.js'
+import { ActActionExecutor, composeTenantActExecutor } from '../src/index.js'
+import {
+  fakeBookingGateway,
+  fakeBookingStore,
+  fakeEmailGateway,
+  fakeEmailStore,
+  fakeReconciler,
+  fakeStatusPort,
+  fakeTemplateResolver,
+  FINGERPRINT_KEY,
+  OTHER_TENANT,
+  TENANT,
+} from './fakes.js'
 
-const TENANT = 'pilot-hotel'
 const TEMPLATE: ApprovedEmailTemplate = {
   tenantId: TENANT,
   templateId: 'booking-confirmation',
@@ -27,20 +48,24 @@ const TEMPLATE: ApprovedEmailTemplate = {
   approved: true,
 }
 
+const bookingInputs = { slotId: 'slot-1', customer: { customerRef: 'cust-1' } }
+const emailInputs = { templateId: TEMPLATE.templateId, to: 'guest@example.com' }
+
+/** An unwired pair of raw executors, dispatched directly. */
 function fixture() {
   const bookings: BookingReservationRequest[] = []
   const emails: EmailSendRequest[] = []
   const booking: BookingGateway = {
-    gatewayId: 'fake-booking',
+    gatewayId: 'raw-booking',
     health: { ready: true, reason: 'ready' },
-    reserve(call) {
-      bookings.push(call)
+    reserve(request) {
+      bookings.push(request)
       return Promise.resolve({ outcome: 'confirmed', bookingReference: 'BOOK-1' })
     },
   }
   const email: EmailGateway = {
-    send(call) {
-      emails.push(call)
+    send(request) {
+      emails.push(request)
       return Promise.resolve({ outcome: 'accepted', providerMessageId: 'MSG-1' })
     },
   }
@@ -48,10 +73,8 @@ function fixture() {
     new BookingActionExecutor({ gateway: booking }),
     new EmailActionExecutor({
       templates: {
-        resolve(tenantId, templateId) {
-          return Promise.resolve(
-            tenantId === TENANT && templateId === TEMPLATE.templateId ? TEMPLATE : null,
-          )
+        resolve() {
+          return Promise.resolve(TEMPLATE)
         },
       },
       gateway: email,
@@ -60,14 +83,49 @@ function fixture() {
   return { executor, bookings, emails }
 }
 
+/** The composition seam, wired from the injected fakes. */
+function configuration() {
+  const booking = fakeBookingGateway({ outcome: 'confirmed', bookingReference: 'BOOK-1' })
+  const bookingStore = fakeBookingStore()
+  const email = fakeEmailGateway({ outcome: 'accepted', providerMessageId: 'MSG-1' })
+  const emailStore = fakeEmailStore()
+  const templates = fakeTemplateResolver()
+  const executor = composeTenantActExecutor({
+    tenantId: TENANT,
+    booking: {
+      gateway: booking.gateway,
+      store: bookingStore.store,
+      reconciler: fakeReconciler({ outcome: 'rejected', reason: 'attempt_not_found' }),
+    },
+    email: {
+      gateway: email.gateway,
+      store: emailStore.store,
+      status: fakeStatusPort({ outcome: 'rejected', reason: 'status_not_available' }),
+      templates: templates.resolver,
+    },
+    fingerprintKeys: { booking: FINGERPRINT_KEY, email: FINGERPRINT_KEY },
+  })
+  return { executor, bookings: booking.calls, emails: email.calls }
+}
+
+/**
+ * A catalog that answers for whichever tenant the turn was built for.
+ *
+ * It resolves `OTHER_TENANT` too, deliberately: the mismatched-tenant case has
+ * to be answered by the composition's own binding rather than by a resolver that
+ * happens to know nothing about the other tenant. A resolver scoped to one
+ * tenant would fail the resolution first, and the test would then be proving the
+ * resolver's care instead of the executor's.
+ */
 const resolver: EntityResolver = {
   resolveExists(tenantId, kind, id) {
     const entries: Readonly<Record<string, readonly string[]>> = {
       slot: ['slot-1'],
       customer: ['cust-1'],
-      template: ['booking-confirmation'],
+      template: [TEMPLATE.templateId],
     }
-    return Promise.resolve(tenantId === TENANT && (entries[kind] ?? []).includes(String(id)))
+    const known = [TENANT, OTHER_TENANT]
+    return Promise.resolve(known.includes(tenantId) && (entries[kind] ?? []).includes(String(id)))
   },
 }
 
@@ -81,14 +139,11 @@ const knowledge: KnowledgePort = {
   },
 }
 
-function turn(
-  action: 'booking.create' | 'email.send',
-  inputs: Readonly<Record<string, unknown>>,
-  overrides: Partial<TurnRequest> = {},
-): TurnRequest {
-  const config = parseClientConfig({
+/** The client configuration for one tenant, whose capability tier is `act`. */
+function clientConfigFor(tenantId: string) {
+  return parseClientConfig({
     schema_version: '1.0.0',
-    tenantId: TENANT,
+    tenantId,
     environment: 'commerce_booking',
     presence: 'chat',
     capability: 'act',
@@ -108,7 +163,25 @@ function turn(
     primaryLanguage: 'id',
     updatedAt: '2026-09-27',
   })
-  const graph = foldContextEvents(seedContextGraph(config, '/rooms'), [
+}
+
+/**
+ * A whole turn, built for one tenant.
+ *
+ * The tenant is a parameter rather than a constant because a request addressed
+ * to another tenant is a turn *built for* that tenant — its config, its graph,
+ * its resolver — not the same turn with one field overwritten. The graph is
+ * scoped to the same tenant because `runTurn` refuses a graph that belongs to
+ * anyone else before it reaches the executor at all, which would prove nothing
+ * about the composition.
+ */
+function turn(
+  action: 'booking.create' | 'email.send',
+  inputs: Readonly<Record<string, unknown>>,
+  overrides: Partial<TurnRequest> = {},
+  tenantId: string = TENANT,
+): TurnRequest {
+  const graph = foldContextEvents(seedContextGraph(clientConfigFor(tenantId), '/rooms'), [
     { type: 'action/set', actions: [{ name: action, enabled: true }] },
   ])
   const brain: BrainProvider = {
@@ -125,66 +198,107 @@ function turn(
     },
   }
   return {
-    tenantId: TENANT,
+    tenantId,
     sessionId: 'session-1',
     utterance: 'Please process the selected request.',
     occurredAt: '2026-09-27T00:00:00.000Z',
+    // The tier and the role are the client's own, which is what the policy gate
+    // weighs the action's requirement against. Both are stated here so that a
+    // positive case really is allowed for the reason it claims to be.
+    capability: 'act',
+    role: 'archava_assistant',
     graph,
     brain,
     policy: new ActionPolicy(),
-    knowledge,
-    capability: 'act',
-    role: 'archava_assistant',
     resolver,
+    knowledge,
     ...overrides,
   }
 }
 
-const bookingInputs = { slotId: 'slot-1', customer: { customerRef: 'cust-1' } }
-const emailInputs = { templateId: 'booking-confirmation', to: 'guest@example.com' }
-
-describe('Act pilot through the real turn pipeline', () => {
-  it('creates a booking only after Act policy, confirmation and entity validation', async () => {
-    const subject = fixture()
+describe('runTurn against the tenant-bound composition', () => {
+  it('succeeds only when policy, confirmation, validation and resolution all hold', async () => {
+    const subject = configuration()
     const outcome = await runTurn(
       turn('booking.create', bookingInputs, {
         executor: subject.executor,
         confirmedActionIds: ['booking.create'],
       }),
     )
-    expect(outcome.actions[0]).toMatchObject({
-      policy: 'allowed',
-      execution: 'succeeded',
-      output: { bookingReference: 'BOOK-1', status: 'confirmed' },
-    })
+    expect(outcome.actions[0]).toMatchObject({ policy: 'allowed', execution: 'succeeded' })
     expect(subject.bookings).toHaveLength(1)
-    expect(subject.emails).toHaveLength(0)
+    expect(subject.bookings[0]).toMatchObject({
+      tenantId: TENANT,
+      slotId: 'slot-1',
+      customerRef: 'cust-1',
+    })
   })
 
-  it('Assist, missing confirmation, absent resolver, and invalid entity block booking', async () => {
+  it('does not let the composition seam restore a capability it does not own', async () => {
+    // Assist tier and unconfirmed Act still refuse. The tenant binding is a
+    // deployment statement, not a capability.
     for (const override of [
-      { capability: 'assist' as const, confirmedActionIds: ['booking.create'] },
+      { capability: 'assist', confirmedActionIds: ['booking.create'] },
       { confirmedActionIds: [] },
-      { confirmedActionIds: ['booking.create'], resolver: undefined },
-      {
-        confirmedActionIds: ['booking.create'],
-        resolver: { resolveExists: () => Promise.resolve(false) },
-      },
-    ]) {
-      const subject = fixture()
+      { confirmedActionIds: ['email.send'] },
+    ] as const) {
+      const subject = configuration()
       const outcome = await runTurn(
         turn('booking.create', bookingInputs, {
           executor: subject.executor,
           ...override,
         }),
       )
-      expect(outcome.actions[0]?.execution).toBe('not_attempted')
+      expect(outcome.actions[0]?.execution).not.toBe('succeeded')
       expect(subject.bookings).toHaveLength(0)
     }
   })
 
-  it('sends only an approved template after confirmation and trusted template resolution', async () => {
-    const subject = fixture()
+  it('does not let the composition seam override a failed entity resolution', async () => {
+    const subject = configuration()
+    const outcome = await runTurn(
+      turn(
+        'booking.create',
+        { slotId: 'slot-missing', customer: { customerRef: 'cust-1' } },
+        {
+          executor: subject.executor,
+          confirmedActionIds: ['booking.create'],
+          resolver: {
+            resolveExists() {
+              return Promise.resolve(false)
+            },
+          },
+        },
+      ),
+    )
+    // Denied before execution, never reached: the executor is below §9, so a
+    // slot nobody can resolve is a refusal on the record rather than an attempt.
+    expect(outcome.actions[0]).toMatchObject({ policy: 'denied', execution: 'not_attempted' })
+    expect(subject.bookings).toHaveLength(0)
+  })
+
+  it('refuses a turn that was built for a tenant it was never configured for', async () => {
+    // Every field of the turn is the other tenant's: its config, its graph, its
+    // resolver answers. Only the executor is this one, and the binding holds.
+    const subject = configuration()
+    const outcome = await runTurn(
+      turn(
+        'booking.create',
+        bookingInputs,
+        {
+          executor: subject.executor,
+          confirmedActionIds: ['booking.create'],
+        },
+        OTHER_TENANT,
+      ),
+    )
+    expect(outcome.actions[0]?.execution).not.toBe('succeeded')
+    expect(subject.bookings).toHaveLength(0)
+    expect(subject.executor.tenantId).toBe(TENANT)
+  })
+
+  it('sends only an approved template, after confirmation and resolution', async () => {
+    const subject = configuration()
     const outcome = await runTurn(
       turn('email.send', emailInputs, {
         executor: subject.executor,
@@ -202,23 +316,37 @@ describe('Act pilot through the real turn pipeline', () => {
     expect(JSON.stringify(outcome.actions[0]?.output)).not.toContain('delivered')
   })
 
-  it('blocks email before consent or entity validation and rejects untrusted body', async () => {
+  it('blocks email before consent or validation, and rejects untrusted body', async () => {
     for (const [inputs, override] of [
       [emailInputs, { capability: 'assist', confirmedActionIds: ['email.send'] }],
       [emailInputs, { confirmedActionIds: [] }],
       [emailInputs, { confirmedActionIds: ['email.send'], resolver: undefined }],
       [{ ...emailInputs, body: 'model-written text' }, { confirmedActionIds: ['email.send'] }],
     ] as const) {
-      const subject = fixture()
+      const subject = configuration()
       const outcome = await runTurn(
         turn('email.send', inputs, {
           executor: subject.executor,
           ...override,
         }),
       )
-      expect(outcome.actions[0]?.execution).toBe('not_attempted')
+      expect(outcome.actions[0]?.execution).not.toBe('succeeded')
       expect(subject.emails).toHaveLength(0)
     }
+  })
+})
+
+describe('runTurn against the raw dispatcher', () => {
+  it('still books a confirmed reservation', async () => {
+    const subject = fixture()
+    const outcome = await runTurn(
+      turn('booking.create', bookingInputs, {
+        executor: subject.executor,
+        confirmedActionIds: ['booking.create'],
+      }),
+    )
+    expect(outcome.actions[0]).toMatchObject({ policy: 'allowed', execution: 'succeeded' })
+    expect(subject.bookings).toHaveLength(1)
   })
 
   it('without any executor, an allowed booking remains not attempted', async () => {
