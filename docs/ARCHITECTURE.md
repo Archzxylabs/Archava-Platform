@@ -209,7 +209,9 @@ adapters  BrainProvider and presence/renderer adapters
 decision  bounded task catalogue, Rule provider, orchestrator and ranking primitive
 act-booking authoritative booking gateway and booking.create executor port
 act-email approved-template email gateway and email.send executor port
-act       server-side dispatch of the two Act executors
+act       tenant-bound composition and dispatch of the two Act executors
+act-storage PostgreSQL attempt-store adapters and migration
+act-confirmation server-side one-time confirmation challenge contract
 chat      DOM renderers: shells, money, knowledge cards
 reference the reference tenant: fixtures, rates, knowledge, brain
 sdk       page awareness graph for a host page
@@ -233,6 +235,10 @@ server-side executors. They receive actions only after the existing turn
 pipeline has applied ActionPolicy, user confirmation, input validation and
 tenant-scoped entity resolution. Each executor then asks an injected
 authoritative gateway for a confirmed booking or durable email acceptance.
-The reference browser has no access to these gateways. Current integration
-tests use fakes; no live PMS or mail provider is connected. See
+The composition factory requires booking replay and email outbox boundaries;
+the PostgreSQL attempt-store adapters provide their durable port implementations.
+The confirmation service can issue and consume a challenge, but no production
+host yet converts its receipt into the turn's confirmation input. The reference
+browser has no access to these gateways. Current integration tests use fakes;
+no live PMS or mail provider is connected. See
 [`ACT_PILOT.md`](ACT_PILOT.md).

@@ -85,9 +85,11 @@ a pass:
 
 ```
 packages/acl         query → intent → plan → response, and the ChatEvent vocabulary
-packages/act         server-side booking/email action dispatch
+packages/act         tenant-bound booking/email composition and dispatch
 packages/act-booking authoritative booking gateway and executor port
+packages/act-confirmation server-side one-time confirmation challenge
 packages/act-email   approved-template email gateway and executor port
+packages/act-storage PostgreSQL attempt-store adapters and migration
 packages/assistant   turn assembly: capability gate, §9 input contract, action execution
 packages/adapters    BrainProvider implementations
 packages/decision    bounded task catalogue, Rule provider, orchestrator
