@@ -88,7 +88,10 @@ packages/acl         query → intent → plan → response, and the ChatEvent v
 packages/act         tenant-bound booking/email composition and dispatch
 packages/act-booking authoritative booking gateway and executor port
 packages/act-confirmation server-side one-time confirmation challenge
+packages/act-confirmation-pg PostgreSQL challenge store and optional local verifier
 packages/act-email   approved-template email gateway and executor port
+packages/act-host    server-side visitor envelope, confirmation, and turn boundary
+packages/act-postmark Postmark template-mail gateway with injected transport
 packages/act-storage PostgreSQL attempt-store adapters and migration
 packages/assistant   turn assembly: capability gate, §9 input contract, action execution
 packages/adapters    BrainProvider implementations
