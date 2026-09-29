@@ -169,11 +169,64 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
 
+  packages/act-confirmation-pg:
+    devDependencies:
+      '@archava/act-confirmation':
+        specifier: workspace:*
+        version: link:../act-confirmation
+      '@archava/act-storage':
+        specifier: workspace:*
+        version: link:../act-storage
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
   packages/act-email:
     dependencies:
       '@archava/assistant':
         specifier: workspace:*
         version: link:../assistant
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
+  packages/act-host:
+    dependencies:
+      '@archava/acl':
+        specifier: workspace:*
+        version: link:../acl
+      '@archava/act-confirmation':
+        specifier: workspace:*
+        version: link:../act-confirmation
+      '@archava/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@archava/assistant':
+        specifier: workspace:*
+        version: link:../assistant
+      '@archava/config':
+        specifier: workspace:*
+        version: link:../config
+      '@archava/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/act-postmark:
+    dependencies:
+      '@archava/act-email':
+        specifier: workspace:*
+        version: link:../act-email
     devDependencies:
       typescript:
         specifier: 5.9.3

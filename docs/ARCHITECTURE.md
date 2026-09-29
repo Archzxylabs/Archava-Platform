@@ -212,6 +212,9 @@ act-email approved-template email gateway and email.send executor port
 act       tenant-bound composition and dispatch of the two Act executors
 act-storage PostgreSQL attempt-store adapters and migration
 act-confirmation server-side one-time confirmation challenge contract
+act-confirmation-pg PostgreSQL challenge store and migration
+act-host  server-owned Act review and presentation boundary
+act-postmark injected Postmark template-mail gateway
 chat      DOM renderers: shells, money, knowledge cards
 reference the reference tenant: fixtures, rates, knowledge, brain
 sdk       page awareness graph for a host page
@@ -237,8 +240,16 @@ tenant-scoped entity resolution. Each executor then asks an injected
 authoritative gateway for a confirmed booking or durable email acceptance.
 The composition factory requires booking replay and email outbox boundaries;
 the PostgreSQL attempt-store adapters provide their durable port implementations.
-The confirmation service can issue and consume a challenge, but no production
-host yet converts its receipt into the turn's confirmation input. The reference
-browser has no access to these gateways. Current integration tests use fakes;
-no live PMS or mail provider is connected. See
+`@archava/act-host` can convert a verified challenge receipt into the turn's
+confirmation input and bind one validated action to that turn. It is a
+server-side library, not an HTTP route; the caller must supply a trusted tenant
+session, a durable attempt ledger, and the composed executor. The ledger port
+does not yet guarantee an atomic canonical timestamp under concurrent reviews
+or distinguish a later new intent with identical inputs, so deployment replay
+safety remains incomplete. `@archava/act-confirmation-pg` implements the
+one-time challenge store through an injected SQL client, and
+`@archava/act-postmark` implements a template-send gateway through an injected
+HTTP transport and server token. Neither is wired to a production database or
+provider. The reference browser has no access to these gateways. Current
+integration tests use fakes; no live PMS or mail provider is connected. See
 [`ACT_PILOT.md`](ACT_PILOT.md).

@@ -36,9 +36,9 @@ stating plainly:
 
 1. `payment.initiate` has no registered input contract, so §9 refuses it —
    `No input contract` — before anything else is consulted.
-2. There is no `ActionExecutor` in the tree that could perform it. `pageExecutor`
-   (`apps/web/src/surface.ts:217`) is a `ui.*` executor and answers
-   `not_a_page_action` for anything else.
+2. There is no payment `ActionExecutor` in the tree. `pageExecutor`
+   (`apps/web/src/surface.ts`) handles `ui.*`; the separate server-side Act
+   executors handle only booking and email, not payment.
 
 That is the whole answer to "is this production ready": the pipeline is, and the
 product is not.
@@ -228,18 +228,47 @@ issues a tenant/session/action/input-bound challenge and delegates one-time
 consumption to an atomic store port. Existing reference behavior remains
 offline. The new packages introduce no external runtime dependency.
 
-The confirmation service has no durable production store or turn-host call site.
-`runTurn` still accepts caller-supplied `confirmedActionIds`; a production host
-must discard browser flags and derive confirmation only from a verified receipt.
-The attempt-store adapter is not connected to a production database. The host
-must preserve the same turn identity and timestamp on retry, retain HMAC keys
-for the whole replay lifetime, keep raw upstream idempotency keys out of
-provider requests/logs, and connect tenant-scoped provider credentials.
-No PMS, mail provider, or real user confirmation flow is connected. PRD §34
-remains unmet. See [`ACT_PILOT.md`](ACT_PILOT.md).
+The confirmation service now has a PostgreSQL store adapter and a server-side
+host call site, but neither is connected to a deployed database or HTTP route.
+`runTurn` still accepts caller-supplied `confirmedActionIds` at its port; the
+new host discards browser flags and derives confirmation from a verified
+receipt. A deployment must preserve the same turn identity and timestamp on
+retry, retain HMAC keys for the replay lifetime, keep raw upstream idempotency
+keys out of provider requests/logs, and connect tenant-scoped credentials.
+No PMS, live mail provider, or real user confirmation flow is connected. PRD
+§34 remains unmet. See [`ACT_PILOT.md`](ACT_PILOT.md).
 
 The reconciliation audit passed `pnpm verify` (1,131 tests across 72 files),
 `pnpm format:check`, and the served browser E2E (31/31). The optional local
 PostgreSQL verifier applied the migration, checked 14 invariants, and confirmed
 one winner under separate-process claim and settlement races. These results
 verify the infrastructure seams; they do not certify a production Act workflow.
+
+## Act host, confirmation store, and Postmark adapter
+
+**Partially Implemented.** `@archava/act-host` accepts a bounded visitor
+envelope, checks policy and validated inputs before minting a challenge, and
+turns a verified receipt into one confirmed action in `runTurn`. Tenant,
+session, capability, role, executor, and keys come from server-owned
+construction. Host tests run through the real confirmation service with an
+in-memory challenge store and fake execution ports. `@archava/act-confirmation-pg`
+implements atomic challenge issue and consume through an injected SQL client;
+its optional local PostgreSQL verifier is separate from ordinary CI.
+`@archava/act-postmark` sends an approved template through an injected
+transport and returns accepted only for a validated Postmark message ID on an
+HTTP 200 success. Its status port returns unknown until a trustworthy positive
+reconciliation path exists. No live provider send has been run.
+
+There is still no HTTP host route, production tenant/session binding, deployed
+challenge database, durable host-attempt ledger, live Postmark credential, or
+PMS integration. The host ledger contract does not yet make concurrent reviews
+choose one canonical `occurredAt`, and identical action/input submissions in
+one session do not yet have an explicit new-intent lifecycle. These are
+deployment blockers for reliable replay protection. The browser remains
+offline, and PRD §34 is still unmet. See [`ACT_PILOT.md`](ACT_PILOT.md).
+
+The integration audit passed all six `pnpm verify` stages: **1,288 tests in
+79 files**. `pnpm format:check` passed; the served reference browser passed
+31/31 E2E checks. The optional disposable PostgreSQL verifier passed 27/27
+checks, including separate-process consume races. These checks use mocked
+provider transport and no live Postmark or PMS credential.
