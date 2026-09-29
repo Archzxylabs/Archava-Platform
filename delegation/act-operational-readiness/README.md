@@ -1,0 +1,17 @@
+# Act operational readiness: parallel delegation
+
+Worktree: `/home/haikaru/Archverse/Lab/Archava_Act_Host` (reuse this existing worktree; create no sibling folder). Branch: `build/act-operational-readiness`, stacked on draft PR #5 at `9c7006d920eebf0d1070e3196f090f71905566bd`. PR #5 itself targets PR #4. Inspect `git status --short` and current HEAD before editing; preserve all work. Do not switch branches, reset, rebase, stash, merge, or create another worktree.
+
+This round addresses three independent gaps identified by the PR #5 audit. No agent may claim a production Act workflow, live Postmark send, or real PMS booking. Ordinary tests must remain offline and credential-free. The reference browser must still work offline.
+
+| Agent | Exclusive write scope                                                    | Deliverable                                                                           |
+| ----- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| a1    | `packages/act-host/**`, new `packages/act-host-pg/**`, Result in `a1.md` | atomic durable host-attempt lifecycle                                                 |
+| a2    | `packages/act-postmark/**`, Result in `a2.md`                            | conservative positive-only status reconciliation if official Postmark APIs support it |
+| a3    | new `tools/act-integration/**`, Result in `a3.md`                        | offline end-to-end composition harness across the public Act seams                    |
+
+Read any file, edit only your scope. If a shared contract or root file needs a patch, describe it precisely in your Result for the lead. Do not edit another agent's scope, root manifest/lockfile, shared docs, `apps/web`, or CI. Do not install dependencies, commit, push, open a PR, or merge. Run focused tests, typecheck, lint, format, and `pnpm structure` where relevant. The lead owns integration, root lockfile/docs, full gates, Git, and the stacked PR.
+
+Authority remains: structured truth for facts; deterministic code for rules; `ActionPolicy` for permission; validation and tenant-scoped entity resolution for inputs; one-time server verification for consent; `ActionExecutor` and authoritative providers for effects. Model confidence and browser flags grant no authority. Unknown booking or mail outcomes never trigger a blind second write. No raw form data, credentials, token, upstream idempotency key, or provider payload in logs or browser results.
+
+Each agent fills the Result section of its own file with changed files, exact commands/results, safety proof, remaining gaps, and shared patch requests. When all three Results are ready, the owner tells the lead `all done`.
