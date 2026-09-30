@@ -12,6 +12,12 @@
  */
 import { domHost } from './dom-bridge.js'
 import { mountSlicePage } from './page.js'
+import { mountRentalUI } from './rental-ui.js'
+
+const rentalHost = document.getElementById('archava-rental')
+if (rentalHost !== null) {
+  mountRentalUI(rentalHost)
+}
 
 const host = document.getElementById('archava-chat')
 if (host === null) {

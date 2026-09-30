@@ -7,3 +7,6 @@ pnpm-lock.yaml
 # produces noise on files nobody reads.
 dist/
 node_modules/
+packages/contracts/lib/
+packages/contracts/out/
+packages/contracts/cache/

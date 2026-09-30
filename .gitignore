@@ -7,6 +7,8 @@ node_modules/
 out/
 dist/
 build/
+cache/
+packages/contracts/lib/
 *.tsbuildinfo
 
 # env

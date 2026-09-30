@@ -26,6 +26,17 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build, type BuildOptions, type Plugin } from 'esbuild'
 import { answerQuote } from './api.js'
+import {
+  handleAuthNonce,
+  handleAuthVerify,
+  handleAuthSession,
+  handleAuthLogout,
+  handleRentalPackages,
+  handleRentalStatus,
+  handleArchavaSessionStart,
+  handleArchavaSessionHeartbeat,
+  handleArchavaSessionEnd,
+} from './rental-api.js'
 
 const appDir = dirname(fileURLToPath(import.meta.url))
 /**
@@ -193,6 +204,51 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
 
   if (url.pathname === '/api/quote') {
     await answerQuote(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/auth/nonce') {
+    await handleAuthNonce(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/auth/verify') {
+    await handleAuthVerify(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/auth/session') {
+    await handleAuthSession(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/auth/logout') {
+    await handleAuthLogout(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/rental/packages') {
+    await handleRentalPackages(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/rental/status') {
+    await handleRentalStatus(request, response, url)
+    return
+  }
+
+  if (url.pathname === '/api/archava/session') {
+    await handleArchavaSessionStart(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/archava/session/heartbeat') {
+    await handleArchavaSessionHeartbeat(request, response)
+    return
+  }
+
+  if (url.pathname === '/api/archava/session/end') {
+    await handleArchavaSessionEnd(request, response)
     return
   }
 
