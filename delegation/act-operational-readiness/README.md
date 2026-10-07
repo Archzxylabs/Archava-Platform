@@ -1,6 +1,6 @@
 # Act operational readiness: parallel delegation
 
-Worktree: `/home/haikaru/Archverse/Lab/Archava_Act_Host` (reuse this existing worktree; create no sibling folder). Branch: `build/act-operational-readiness`, stacked on draft PR #5 at `9c7006d920eebf0d1070e3196f090f71905566bd`. PR #5 itself targets PR #4. Inspect `git status --short` and current HEAD before editing; preserve all work. Do not switch branches, reset, rebase, stash, merge, or create another worktree.
+Workspace: `/home/haikaru/Archverse/Lab/Archava_Platform`. Baseline: consolidated `main` after PRs #2–#5 and #9 were merged. The old `Archava_Act_*` worktrees have been removed; continue in this primary workspace on the lead-selected working branch. Inspect `git status --short` and current HEAD before editing; preserve all work. Do not switch branches, reset, rebase, stash, merge, or create another worktree.
 
 This round addresses three independent gaps identified by the PR #5 audit. No agent may claim a production Act workflow, live Postmark send, or real PMS booking. Ordinary tests must remain offline and credential-free. The reference browser must still work offline.
 
