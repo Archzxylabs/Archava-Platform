@@ -17,6 +17,16 @@ It is derived from Archava Onchain without wallet/contracts and runs as a standa
 npm project, with its own frontend, API, Python worker, setup profiles, and deployment guide.
 Run its commands inside that directory; it is separate from the pnpm workspaces below.
 
+Decision Intelligence, the Act backend packages, the website/workspace frontend,
+and the portable realtime template are maintained together in this repository.
+The frontend demo and template have separate runtime boundaries; consolidating
+their source does not connect CRM/ERP, providers, or production Act workflows.
+
+For the new website at `/archava` and CRM/ERP workspace at `/workspace`, see
+[`docs/FRONTEND.md`](docs/FRONTEND.md). Both use fictional browser-local records.
+For the server-side booking/email packages and remaining deployment requirements,
+see [`docs/ACT_PILOT.md`](docs/ACT_PILOT.md).
+
 ## What runs today
 
 One vertical slice runs end to end, offline, in a browser:
@@ -47,26 +57,30 @@ pnpm e2e:home       # 31 assertions against the served page
 pnpm decision:eval  # 51-case offline Rule provider and routing evaluation
 ```
 
+Optional Jev evaluation stays separate from those commands. After server-side
+credential and data-term review, see [Jev eval readiness](docs/JEV_EVAL_READINESS.md)
+for the explicit synthetic SHADOW command.
+
 ## The one idea
 
 An assistant is only trustworthy if its answers are _checkable_. So the pipeline
 is a sequence of boundaries, each of which holds a port, and each port is an
 interface with implementations you can point at:
 
-| Boundary                        | Port                               | In-tree implementation                               |
-| ------------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| Conversation                    | `BrainProvider`                    | `ScriptedBrain`, `ReferenceBrain` (deterministic)    |
-| Bounded judgment                | `DecisionProvider`                 | `RuleDecisionProvider`; Jev server adapter           |
-| Retrieval                       | `KnowledgePort` / `KnowledgeStore` | `@archava/knowledge`, wired by `buildKnowledgeStore` |
-| Live facts                      | `StructuredTruthPort`              | `referenceTruth` (date-stated fixtures)              |
-| "Does this id exist?"           | `EntityResolver`                   | `pageEntityResolver` (page-scoped)                   |
-| "May I do it, and did it work?" | `ActionExecutor`                   | `pageExecutor` (`ui.*` only)                         |
+| Boundary                        | Port                               | In-tree implementation                                |
+| ------------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| Conversation                    | `BrainProvider`                    | `ScriptedBrain`, `ReferenceBrain` (deterministic)     |
+| Bounded judgment                | `DecisionProvider`                 | `RuleDecisionProvider`; Jev server adapter            |
+| Retrieval                       | `KnowledgePort` / `KnowledgeStore` | `@archava/knowledge`, wired by `buildKnowledgeStore`  |
+| Live facts                      | `StructuredTruthPort`              | `referenceTruth` (date-stated fixtures)               |
+| "Does this id exist?"           | `EntityResolver`                   | `pageEntityResolver` (page-scoped)                    |
+| "May I do it, and did it work?" | `ActionExecutor`                   | `pageExecutor` for UI; mocked Act booking/email ports |
 
-The offline reference does not contact a model, a PMS, or a payment provider. Every port is
-real, and every implementation is an honest in-tree stand-in that says so. Where a
-real system would sit, the code returns a labelled failure rather than a
-plausible-looking success — see `pageExecutor`, which will highlight a room and
-will not book one.
+The offline reference does not contact a model, a PMS, or a payment provider. The
+new server-side Act executors have injected booking and email gateways and
+end-to-end tests with fakes; the browser still does not book or send email. Where
+a real system is absent, the browser returns a labelled non-execution rather
+than a plausible-looking success.
 
 Three rules the tests enforce, because each one is a failure mode that looks like
 a pass:
@@ -86,6 +100,14 @@ a pass:
 
 ```
 packages/acl         query → intent → plan → response, and the ChatEvent vocabulary
+packages/act         tenant-bound booking/email composition and dispatch
+packages/act-booking authoritative booking gateway and executor port
+packages/act-confirmation server-side one-time confirmation challenge
+packages/act-confirmation-pg PostgreSQL challenge store and optional local verifier
+packages/act-email   approved-template email gateway and executor port
+packages/act-host    server-side visitor envelope, confirmation, and turn boundary
+packages/act-postmark Postmark template-mail gateway with injected transport
+packages/act-storage PostgreSQL attempt-store adapters and migration
 packages/assistant   turn assembly: capability gate, §9 input contract, action execution
 packages/adapters    BrainProvider implementations
 packages/decision    bounded task catalogue, Rule provider, orchestrator
@@ -98,7 +120,7 @@ packages/reference   the reference tenant: fixtures, rates, knowledge, brain
 packages/sdk         Archava Web SDK — page awareness graph for a host page
 apps/web             the runnable server and the browser slice
 tools/configurator   `pnpm configurator` — intake → config set, and `POST /api/quote`
-tools/decision-eval  `pnpm decision:eval` — offline labelled evaluation
+tools/decision-eval  offline Rule eval and optional synthetic Jev SHADOW eval
 tools/scripts        structure.mjs, verify.mjs (the honesty gate)
 tools/e2e            home.mjs
 ```
@@ -124,6 +146,10 @@ Nothing here gates the _prose_. This file and
 [`docs/BUILD_STATUS.md`](docs/BUILD_STATUS.md) are maintained by hand, which is
 the one place an honesty claim can go stale — so when reading either, read what
 the gate output actually said rather than what the sentence claims.
+
+CI also checks `Archava Template` independently with `npm ci`, JavaScript tests,
+offline Python guardrails, and its production build. Those commands run inside
+the template directory; `pnpm verify` covers the platform workspace only.
 
 ## Status
 

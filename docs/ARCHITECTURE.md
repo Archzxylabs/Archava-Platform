@@ -207,6 +207,14 @@ knowledge retrieval store, ranking, structured-truth port shape
 assistant turn assembly: mask, gate, §9 validation, execution, outcome
 adapters  BrainProvider and presence/renderer adapters
 decision  bounded task catalogue, Rule provider, orchestrator and ranking primitive
+act-booking authoritative booking gateway and booking.create executor port
+act-email approved-template email gateway and email.send executor port
+act       tenant-bound composition and dispatch of the two Act executors
+act-storage PostgreSQL attempt-store adapters and migration
+act-confirmation server-side one-time confirmation challenge contract
+act-confirmation-pg PostgreSQL challenge store and migration
+act-host  server-owned Act review and presentation boundary
+act-postmark injected Postmark template-mail gateway
 chat      DOM renderers: shells, money, knowledge cards
 reference the reference tenant: fixtures, rates, knowledge, brain
 sdk       page awareness graph for a host page
@@ -222,3 +230,26 @@ a gate failure rather than a code-review opinion.
 The turn now has an optional bounded judgment seam between deterministic classification and the Brain. `packages/adapters/src/decision.ts` declares a vendor-neutral `DecisionProvider`; `packages/decision` owns five task definitions, per-task confidence/direction policy, the offline Rule provider, and the orchestrator. The assistant supplies Foundation baselines and projected/redacted context. The orchestrator's `off` mode makes no call, `shadow` records disagreements without effects, and `assist` may apply an approved answer. Routing can only escalate to a trusted structured-truth subject. ActionPolicy, input validation, entity resolution and ActionExecutor remain separate and authoritative.
 
 Jev lives in `@archava/adapters/server`; no Jev type enters core product logic or the browser. The reference browser can run Rule decisions offline and renders trace metadata under `?inspect`. A server host may inject Jev through the same port. No live Jev verification has occurred. The full contract, privacy boundaries and eval command are documented in [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md).
+
+## Act pilot boundary
+
+`packages/act` dispatches only booking.create and email.send to their
+server-side executors. They receive actions only after the existing turn
+pipeline has applied ActionPolicy, user confirmation, input validation and
+tenant-scoped entity resolution. Each executor then asks an injected
+authoritative gateway for a confirmed booking or durable email acceptance.
+The composition factory requires booking replay and email outbox boundaries;
+the PostgreSQL attempt-store adapters provide their durable port implementations.
+`@archava/act-host` can convert a verified challenge receipt into the turn's
+confirmation input and bind one validated action to that turn. It is a
+server-side library, not an HTTP route; the caller must supply a trusted tenant
+session, a durable attempt ledger, and the composed executor. The ledger port
+does not yet guarantee an atomic canonical timestamp under concurrent reviews
+or distinguish a later new intent with identical inputs, so deployment replay
+safety remains incomplete. `@archava/act-confirmation-pg` implements the
+one-time challenge store through an injected SQL client, and
+`@archava/act-postmark` implements a template-send gateway through an injected
+HTTP transport and server token. Neither is wired to a production database or
+provider. The reference browser has no access to these gateways. Current
+integration tests use fakes; no live PMS or mail provider is connected. See
+[`ACT_PILOT.md`](ACT_PILOT.md).

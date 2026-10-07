@@ -2056,20 +2056,18 @@
       document
         .getElementById('preview-order')
         .addEventListener('click', () => openOrder('SO-2026-0012'))
-      document
-        .getElementById('review-action')
-        .addEventListener('click', () =>
-          openDetail({
-            title: taskCreated ? 'Follow-up already added' : 'Review Nadia’s follow-up',
-            copy: taskCreated
-              ? 'This sample task is already in the local preview.'
-              : 'Archava proposes a task. Review the details before creating it.',
-            detail:
-              'Task: follow up with Nadia at Studio Forma. Owner: sales team. Due: tomorrow. This creates a fictional local preview task only.',
-            kicker: 'AI PROPOSAL / APPROVAL',
-            confirm: !taskCreated,
-          }),
-        )
+      document.getElementById('review-action').addEventListener('click', () =>
+        openDetail({
+          title: taskCreated ? 'Follow-up already added' : 'Review Nadia’s follow-up',
+          copy: taskCreated
+            ? 'This sample task is already in the local preview.'
+            : 'Archava proposes a task. Review the details before creating it.',
+          detail:
+            'Task: follow up with Nadia at Studio Forma. Owner: sales team. Due: tomorrow. This creates a fictional local preview task only.',
+          kicker: 'AI PROPOSAL / APPROVAL',
+          confirm: !taskCreated,
+        }),
+      )
       function closeDialog() {
         dialog.close()
       }

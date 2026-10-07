@@ -1,5 +1,13 @@
 # Build status
 
+The consolidated source also includes the [website and CRM/ERP frontend](FRONTEND.md)
+and the [portable realtime template](<../Archava Template/README.md>). Frontend
+records and approvals are browser-local demos. The template is a standalone npm
+project, has provider SDK dependencies, and is not connected to the platform's
+shared intelligence core. The workspace dependency and runtime classifications
+below refer to the pnpm platform unless explicitly stated otherwise. Neither
+addition closes the commercial-readiness gates.
+
 An honest classification of every area of `PRD.md` against this tree. The four
 labels mean:
 
@@ -26,7 +34,7 @@ tenant. The pipeline's decisions are real and fully visible: retrieval,
 structured truth, the capability gate, §9 input validation, entity resolution,
 and execution each happen in code with a test beside them. The **commercial
 surface does not exist**. There is no payment integration, no PMS integration,
-and no real executor for any action that changes a tenant's data.
+and no production-connected executor for any action that changes a tenant's data.
 
 The PRD's acceptance criterion is `PRD.md` §34: _Act_ can complete one
 booking/CRM/email workflow; _Transact_ can complete one full payment →
@@ -36,9 +44,9 @@ stating plainly:
 
 1. `payment.initiate` has no registered input contract, so §9 refuses it —
    `No input contract` — before anything else is consulted.
-2. There is no `ActionExecutor` in the tree that could perform it. `pageExecutor`
-   (`apps/web/src/surface.ts:217`) is a `ui.*` executor and answers
-   `not_a_page_action` for anything else.
+2. There is no payment `ActionExecutor` in the tree. `pageExecutor`
+   (`apps/web/src/surface.ts`) handles `ui.*`; the separate server-side Act
+   executors handle only booking and email, not payment.
 
 That is the whole answer to "is this production ready": the pipeline is, and the
 product is not.
@@ -75,20 +83,20 @@ product is not.
 
 The mechanism is real and tested; what is behind it is a stand-in.
 
-| Area                                     | What exists                                                                                                                      | What is missing                                                                                                                     |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Conversation (`BrainProvider`)           | `ScriptedBrain` and `ReferenceBrain` — deterministic, keyword-matched, with an explicit fallback sentence                        | a generative model client. The Jev decision adapter does not implement conversation                                                 |
-| Retrieval (`KnowledgePort`)              | `buildKnowledgeStore` (`packages/reference/src/knowledge.ts:224`) + `retrieveContext`                                            | a hosted index, embeddings, incremental ingest. The store is in memory and built at request time                                    |
-| Live facts (`StructuredTruthPort`)       | `referenceTruth` (`packages/reference/src/rates.ts:421`) — date-stated fixtures                                                  | a PMS or inventory service. Prices and availability are fixtures, not live                                                          |
-| "Does this id exist?" (`EntityResolver`) | `pageEntityResolver` (`apps/web/src/surface.ts:142`) — answers from the rendered page, kind `pageEntity`                         | a tenant catalog. The resolver can only confirm what the page is already showing                                                    |
-| Execution (`ActionExecutor`)             | `pageExecutor` (`apps/web/src/surface.ts:217`) — `ui.highlight`, `ui.compare`                                                    | every other executor. A booking, an email, a payment, a CRM write: none exist, and the stand-in labels them rather than faking them |
-| Confirmation and human approval          | `confirmedActionIds`, `declinedActionIds`, `humanApprovedActionIds`, `handoffRequested` on `TurnRequest`; gate reasons emit them | an operator console. In the reference slice these are supplied by the caller, so no real person ever approves anything              |
-| Multi-tenancy                            | `assertTenant` at the seam (`apps/web/src/slice.ts:160`); tenant id never travels inside a payload                               | provisioning, per-tenant configuration at runtime, database-level isolation. One tenant ships                                       |
-| Analytics                                | `AnalyticsEvent`s on every `TurnOutcome` (`packages/assistant/src/analytics.ts`)                                                 | anywhere to send them. No PostHog, OTel, Phoenix or Sentry                                                                          |
-| SDK integration                          | graph building, consent, session                                                                                                 | a real host page shipped by a tenant. The reference page is the only consumer                                                       |
-| Configurator                             | a config set and a quote                                                                                                         | persistence and tenant provisioning. "Built" means the file exists                                                                  |
-| Handoff to a human                       | `HandoffContext` and `packages/assistant/src/handoff.ts`                                                                         | a channel to a human. The request is modelled; nothing is delivered                                                                 |
-| Auth and authorisation                   | roles and tiers as data                                                                                                          | authentication of any kind. No login exists in the tree                                                                             |
+| Area                                     | What exists                                                                                                                             | What is missing                                                                                                        |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Conversation (`BrainProvider`)           | `ScriptedBrain` and `ReferenceBrain` — deterministic, keyword-matched, with an explicit fallback sentence                               | a generative model client. The Jev decision adapter does not implement conversation                                    |
+| Retrieval (`KnowledgePort`)              | `buildKnowledgeStore` (`packages/reference/src/knowledge.ts:224`) + `retrieveContext`                                                   | a hosted index, embeddings, incremental ingest. The store is in memory and built at request time                       |
+| Live facts (`StructuredTruthPort`)       | `referenceTruth` (`packages/reference/src/rates.ts:421`) — date-stated fixtures                                                         | a PMS or inventory service. Prices and availability are fixtures, not live                                             |
+| "Does this id exist?" (`EntityResolver`) | `pageEntityResolver` (`apps/web/src/surface.ts:142`) — answers from the rendered page, kind `pageEntity`                                | a tenant catalog. The resolver can only confirm what the page is already showing                                       |
+| Execution (`ActionExecutor`)             | `pageExecutor` for UI; `packages/act-booking`, `act-email`, and `act` for server-side booking/email ports with mocked integration tests | a connected booking/email service, durable outbox, CRM, payment, and production tenant wiring                          |
+| Confirmation and human approval          | `confirmedActionIds`, `declinedActionIds`, `humanApprovedActionIds`, `handoffRequested` on `TurnRequest`; gate reasons emit them        | an operator console. In the reference slice these are supplied by the caller, so no real person ever approves anything |
+| Multi-tenancy                            | `assertTenant` at the seam (`apps/web/src/slice.ts:160`); tenant id never travels inside a payload                                      | provisioning, per-tenant configuration at runtime, database-level isolation. One tenant ships                          |
+| Analytics                                | `AnalyticsEvent`s on every `TurnOutcome` (`packages/assistant/src/analytics.ts`)                                                        | anywhere to send them. No PostHog, OTel, Phoenix or Sentry                                                             |
+| SDK integration                          | graph building, consent, session                                                                                                        | a real host page shipped by a tenant. The reference page is the only consumer                                          |
+| Configurator                             | a config set and a quote                                                                                                                | persistence and tenant provisioning. "Built" means the file exists                                                     |
+| Handoff to a human                       | `HandoffContext` and `packages/assistant/src/handoff.ts`                                                                                | a channel to a human. The request is modelled; nothing is delivered                                                    |
+| Auth and authorisation                   | roles and tiers as data                                                                                                                 | authentication of any kind. No login exists in the tree                                                                |
 
 ## Planned
 
@@ -118,8 +126,9 @@ done.
 
 **Data and infrastructure**
 
-- Neon PostgreSQL, pgvector, Drizzle — the persistence layer does not exist at
-  all; there is no database client in the tree
+- Neon PostgreSQL, pgvector, Drizzle — an Act attempt-store migration and SQL
+  adapter exist, but no database driver, deployed database, or general
+  persistence layer is connected
 - Upstash Redis, Cloudflare R2
 - Payload CMS
 - Nx, Next.js, Tailwind + shadcn, Storybook (the web app is a hand-written
@@ -194,4 +203,80 @@ the row.
 
 **Partially Implemented.** The provider-neutral contract, five-task catalogue, Rule provider, off/shadow/assist orchestrator, tenant schema, turn integration, metadata events, optional reference inspector, offline eval and server-side Jev adapter exist and have offline tests. The Rule provider and reference app remain network-free. Jev transport is mocked in tests; no live request, calibrated Indonesian Jev evaluation, production decision service, retention agreement, or production telemetry sink is present. Laya and all future task seams remain Planned.
 
-`pnpm decision:eval` scores 51 committed cases (22 English, 17 Indonesian, 12 mixed). Current Rule result after fixing deterministic routing gaps: raw judgments 43/255 correct with 157 unanswered; effective routing 50/51 correct and **0 critical structured-truth downgrades among 25 protected cases**. These are Rule/offline measurements, not a Jev quality claim. The evaluator also reports per-label counts and confusion. Ordinary safety tests prove provider confidence cannot bypass capability, confirmation, validation, entity resolution or executor absence. See [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md) and [`JEV_PROVIDER_RESEARCH.md`](JEV_PROVIDER_RESEARCH.md).
+`pnpm decision:eval` scores 51 committed utterance cases (22 English, 17 Indonesian, 12 mixed) across four tasks. The Rule provider answered 35/204 expected judgments correctly, with 157 unanswered; effective routing is 50/51 correct and has **0 critical structured-truth downgrades among 25 protected cases**. Evidence sufficiency is excluded from this utterance-only score and evaluated separately on 28 synthetic evidence cases. These are Rule/offline measurements, not a Jev quality claim. The evaluator also reports per-label counts and confusion. Ordinary safety tests prove provider confidence cannot bypass capability, confirmation, validation, entity resolution or executor absence. See [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md) and [`JEV_PROVIDER_RESEARCH.md`](JEV_PROVIDER_RESEARCH.md).
+
+## Act pilot after delegation audit
+
+**Partially Implemented.** `packages/act-booking` and `packages/act-email` implement narrow server-side `ActionExecutor` ports; `packages/act` dispatches them. A focused `runTurn` test reaches mocked booking and email gateways only after Act capability, user confirmation, input validation, and tenant-scoped entity resolution. Booking success requires an authoritative confirmed reference; email success means accepted for delivery, not delivered. Unknown outcomes fail without an automatic retry. No PMS, mail provider, connected production database, trusted production template catalog, real confirmation UI, or production tenant wiring is connected. This does **not** meet the PRD §34 real Act workflow criterion.
+
+The original Act pilot gate run passed 898 tests across 58 files. After replay
+and evaluation hardening, the final offline run passed **987 tests across 64
+files**, `pnpm verify` passed all six stages, `pnpm format:check` passed, and the
+served reference browser passed 31/31 E2E checks.
+
+`pnpm decision:jev-eval -- --live --max-cases 5` is a separate optional synthetic SHADOW evaluation command. It has offline mocked tests, but no live Jev result or provider data agreement. Evidence sufficiency is scored on a separate 28-case synthetic evidence set; the 51-case utterance corpus still carries no evidence payload. See [`JEV_EVAL_READINESS.md`](JEV_EVAL_READINESS.md).
+
+The new booking replay and email outbox boundaries require an injected durable
+atomic attempt store, stable server-side HMAC key, and read-only authoritative
+reconciliation. Tests use fakes and controlled races. No production server host
+constructs these boundaries yet, and no production database or external booking or
+email provider is connected. A confirmed booking replay currently depends on
+underlying PMS health even when a stored reference exists; this is an
+availability limitation. PRD §34 remains unmet.
+
+## Act infrastructure seam after production-readiness delegation
+
+**Implemented as server-side contracts, not connected to a production host.**
+`@archava/act-storage` adds PostgreSQL attempt stores for booking and email,
+with a unique tenant/action/key claim, conditional settlement, a server-held
+digest of the upstream idempotency key, and an optional disposable local
+PostgreSQL verifier. `@archava/act` now exposes a tenant-bound composition
+factory that requires replay and outbox wrappers. `@archava/act-confirmation`
+issues a tenant/session/action/input-bound challenge and delegates one-time
+consumption to an atomic store port. Existing reference behavior remains
+offline. The new packages introduce no external runtime dependency.
+
+The confirmation service now has a PostgreSQL store adapter and a server-side
+host call site, but neither is connected to a deployed database or HTTP route.
+`runTurn` still accepts caller-supplied `confirmedActionIds` at its port; the
+new host discards browser flags and derives confirmation from a verified
+receipt. A deployment must preserve the same turn identity and timestamp on
+retry, retain HMAC keys for the replay lifetime, keep raw upstream idempotency
+keys out of provider requests/logs, and connect tenant-scoped credentials.
+No PMS, live mail provider, or real user confirmation flow is connected. PRD
+§34 remains unmet. See [`ACT_PILOT.md`](ACT_PILOT.md).
+
+The reconciliation audit passed `pnpm verify` (1,131 tests across 72 files),
+`pnpm format:check`, and the served browser E2E (31/31). The optional local
+PostgreSQL verifier applied the migration, checked 14 invariants, and confirmed
+one winner under separate-process claim and settlement races. These results
+verify the infrastructure seams; they do not certify a production Act workflow.
+
+## Act host, confirmation store, and Postmark adapter
+
+**Partially Implemented.** `@archava/act-host` accepts a bounded visitor
+envelope, checks policy and validated inputs before minting a challenge, and
+turns a verified receipt into one confirmed action in `runTurn`. Tenant,
+session, capability, role, executor, and keys come from server-owned
+construction. Host tests run through the real confirmation service with an
+in-memory challenge store and fake execution ports. `@archava/act-confirmation-pg`
+implements atomic challenge issue and consume through an injected SQL client;
+its optional local PostgreSQL verifier is separate from ordinary CI.
+`@archava/act-postmark` sends an approved template through an injected
+transport and returns accepted only for a validated Postmark message ID on an
+HTTP 200 success. Its status port returns unknown until a trustworthy positive
+reconciliation path exists. No live provider send has been run.
+
+There is still no HTTP host route, production tenant/session binding, deployed
+challenge database, durable host-attempt ledger, live Postmark credential, or
+PMS integration. The host ledger contract does not yet make concurrent reviews
+choose one canonical `occurredAt`, and identical action/input submissions in
+one session do not yet have an explicit new-intent lifecycle. These are
+deployment blockers for reliable replay protection. The browser remains
+offline, and PRD §34 is still unmet. See [`ACT_PILOT.md`](ACT_PILOT.md).
+
+The integration audit passed all six `pnpm verify` stages: **1,288 tests in
+79 files**. `pnpm format:check` passed; the served reference browser passed
+31/31 E2E checks. The optional disposable PostgreSQL verifier passed 27/27
+checks, including separate-process consume races. These checks use mocked
+provider transport and no live Postmark or PMS credential.

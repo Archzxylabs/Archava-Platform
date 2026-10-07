@@ -4,17 +4,17 @@ This document describes the code behind PRD §39. It is an internal bounded judg
 
 ## Package and request path
 
-| Part                 | Location                                                               | Responsibility                                                                                  |
-| -------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Neutral port         | `packages/adapters/src/decision.ts`                                    | `DecisionProvider`, typed Boolean/Choice/Score questions and answers                            |
-| Catalogue and policy | `packages/decision/src/tasks.ts`, `policy.ts`, `ranking.ts`            | Five closed tasks, per-task confidence floors and a bounded future ranking primitive            |
-| Orchestrator         | `packages/decision/src/orchestrator.ts`                                | One batched call, off/shadow/assist, response validation, timeout, fallback and metadata traces |
-| Offline provider     | `packages/decision/src/rule-provider.ts`                               | Deterministic cue baseline and interchangeability proof                                         |
-| External provider    | `packages/adapters/src/jev-decision.ts` via `@archava/adapters/server` | Server-only TypeSafe HTTP adapter and transport normalization                                   |
-| Turn seam            | `packages/assistant/src/decision.ts`, `turn.ts`                        | Project/redact context, deterministic baselines, limited assist effects and events              |
-| Tenant schema        | `packages/config/src/client/schema.ts`                                 | Optional `decision` config; absence preserves Foundation behavior                               |
-| Reference            | `apps/web/src/slice.ts`, chat inspector                                | Offline rule mode and debug traces when configured; no browser credential                       |
-| Evaluation           | `tools/decision-eval`                                                  | 51 labelled cases; accuracy, per-label counts, confusion and critical downgrades                |
+| Part                 | Location                                                               | Responsibility                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Neutral port         | `packages/adapters/src/decision.ts`                                    | `DecisionProvider`, typed Boolean/Choice/Score questions and answers                                                   |
+| Catalogue and policy | `packages/decision/src/tasks.ts`, `policy.ts`, `ranking.ts`            | Five closed tasks, per-task confidence floors and a bounded future ranking primitive                                   |
+| Orchestrator         | `packages/decision/src/orchestrator.ts`                                | One batched call, off/shadow/assist, response validation, timeout, fallback and metadata traces                        |
+| Offline provider     | `packages/decision/src/rule-provider.ts`                               | Deterministic cue baseline and interchangeability proof                                                                |
+| External provider    | `packages/adapters/src/jev-decision.ts` via `@archava/adapters/server` | Server-only TypeSafe HTTP adapter and transport normalization                                                          |
+| Turn seam            | `packages/assistant/src/decision.ts`, `turn.ts`                        | Project/redact context, deterministic baselines, limited assist effects and events                                     |
+| Tenant schema        | `packages/config/src/client/schema.ts`                                 | Optional `decision` config; absence preserves Foundation behavior                                                      |
+| Reference            | `apps/web/src/slice.ts`, chat inspector                                | Offline rule mode and debug traces when configured; no browser credential                                              |
+| Evaluation           | `tools/decision-eval`                                                  | 51 utterance cases plus a separate synthetic evidence set; accuracy, per-label counts, confusion and critical failures |
 
 A turn classifies structured truth deterministically, retrieves published content, projects and masks context, then asks the orchestrator only for configured tasks. The resulting route may escalate to a trusted live-system subject. A provider cannot invent a subject, downgrade an already protected live question, authorize an action, or claim a side effect. The existing Brain, ActionPolicy, input validator, resolver, and executor still run in their own boundaries.
 
@@ -35,3 +35,9 @@ The turn emits `decision_evaluated`, `decision_fallback_used`, `decision_low_con
 Run `pnpm decision:eval` for the offline Rule provider and effective protected routing. The corpus has 51 cases: 22 English, 17 Indonesian, 12 mixed. It includes the six Foundation examples, ambiguity, recommendation/comparison, handoff, unsupported claims, price plus availability, support, purchase, and transactional status. The report prints per-task and per-label accuracy and a separate structured-truth downgrade counter. Rule judgments are intentionally crude; unanswered questions and weak evidence coverage are reported rather than hidden. The score is not a Jev score. The current result is recorded in `docs/BUILD_STATUS.md` after gates.
 
 The optional `pnpm decision:jev-smoke` makes one live call using `TYPESAFE_API_KEY` from the server environment and synthetic text only. It is not part of CI. See [Jev provider research](JEV_PROVIDER_RESEARCH.md) for current official API links, limits, privacy status and mock/live test distinction.
+
+The separate `pnpm decision:jev-eval -- --live --max-cases 5` command runs two
+bounded synthetic multilingual SHADOW evaluations when the owner provisions a
+server key. The 51 utterance cases score four tasks; the separate labelled
+evidence set scores evidence sufficiency. Neither set has been run against live
+Jev. See [`JEV_EVAL_READINESS.md`](JEV_EVAL_READINESS.md).

@@ -49,3 +49,9 @@ Dokumentasi hosting resmi diperiksa ulang. Recipe `railway.json` lama dihapus da
 ## Lokasi di Archava Platform
 
 Template dipindahkan dari Archava Onchain ke `Archverse/Lab/Archava_Platform/Archava Template`. Manifest 80 file source/export cocok sebelum dan sesudah pemindahan. Panduan import env disesuaikan dengan lokasi baru; profil pribadi di direktori config pengguna tetap sama. Config check dan 12 test profile/export lolos dari lokasi baru. Structure, lint, dan pemeriksaan format file index/config Platform juga lolos; template memakai npm/check sendiri di luar workspace pnpm Platform. Arsip export diperbarui setelah petunjuk lokasi diubah.
+
+## Verifikasi konsolidasi — 7 Oktober 2026
+
+Install bersih `npm ci`, 55 test JavaScript, 4 test guardrail Python, dan build template lolos ketika source digabung dengan platform. CI repository sekarang menjalankan pemeriksaan tersebut sebagai job template tersendiri. Tujuh test integrasi SDK Python belum diulang pada konsolidasi ini karena venv proyek tidak tersedia; hasil historisnya tercatat di atas.
+
+`npm audit --omit=dev` melaporkan 16 advisory pada dependency graph yang terpasang: 14 moderate dan 2 high. Dua package berlevel high adalah `source-map-js` dan `vite`; versi tetap mengikuti lockfile template yang diaudit. Upgrade dependency dan pemeriksaan ulang advisory perlu diselesaikan sebelum deployment live. Konsolidasi source dan build yang lolos belum menjadi bukti kesiapan produksi.
