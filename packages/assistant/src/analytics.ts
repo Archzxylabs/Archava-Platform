@@ -47,6 +47,10 @@ export const ANALYTICS_EVENTS = [
   'action_confirmation_required',
   'action_execution_succeeded',
   'action_execution_failed',
+  'decision_evaluated',
+  'decision_fallback_used',
+  'decision_low_confidence',
+  'decision_provider_failure',
 ] as const
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[number]
 

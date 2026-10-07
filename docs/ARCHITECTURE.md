@@ -7,7 +7,7 @@ tree as it is; for what the tree does not yet do, see
 ## The shape
 
 A turn is a sequence of boundaries. Each boundary holds a **port** — an
-interface, in TypeScript, with exactly one implementation in the tree — and each
+interface, in TypeScript, with implementations in the tree — and each
 implementation is an honest in-tree stand-in that says what it is standing in
 for.
 
@@ -43,7 +43,7 @@ that could skip an `await`.
 | `EntityResolver`      | `packages/assistant/src/validation.ts:48` | `pageEntityResolver` (`apps/web/src/surface.ts:142`) — page-scoped                                                                           | a tenant catalog               |
 | `ActionExecutor`      | `packages/assistant/src/execution.ts`     | `pageExecutor` (`apps/web/src/surface.ts:217`) — `ui.*` only                                                                                 | the tenant's real systems      |
 
-Nothing in the tree contacts a model, a PMS, or a payment provider. `pageExecutor`
+The offline reference does not contact a model, a PMS, or a payment provider. `pageExecutor`
 is the clearest example of the rule: it will highlight a room and it will not
 book one. It answers `not_a_page_action` — _"This page can only draw on itself;
 a browser may not perform that action."_ — for anything a browser is not entitled
@@ -206,6 +206,7 @@ acl       action registry, roles, capability gate, masking
 knowledge retrieval store, ranking, structured-truth port shape
 assistant turn assembly: mask, gate, §9 validation, execution, outcome
 adapters  BrainProvider and presence/renderer adapters
+decision  bounded task catalogue, Rule provider, orchestrator and ranking primitive
 chat      DOM renderers: shells, money, knowledge cards
 reference the reference tenant: fixtures, rates, knowledge, brain
 sdk       page awareness graph for a host page
@@ -215,3 +216,9 @@ sdk       page awareness graph for a host page
 Dependencies point inward: `reference` may depend on everything; `core` depends
 on nothing but `zod`. `pnpm structure` enforces this, so a boundary violation is
 a gate failure rather than a code-review opinion.
+
+## Decision Intelligence extension (PRD §39)
+
+The turn now has an optional bounded judgment seam between deterministic classification and the Brain. `packages/adapters/src/decision.ts` declares a vendor-neutral `DecisionProvider`; `packages/decision` owns five task definitions, per-task confidence/direction policy, the offline Rule provider, and the orchestrator. The assistant supplies Foundation baselines and projected/redacted context. The orchestrator's `off` mode makes no call, `shadow` records disagreements without effects, and `assist` may apply an approved answer. Routing can only escalate to a trusted structured-truth subject. ActionPolicy, input validation, entity resolution and ActionExecutor remain separate and authoritative.
+
+Jev lives in `@archava/adapters/server`; no Jev type enters core product logic or the browser. The reference browser can run Rule decisions offline and renders trace metadata under `?inspect`. A server host may inject Jev through the same port. No live Jev verification has occurred. The full contract, privacy boundaries and eval command are documented in [`DECISION_INTELLIGENCE.md`](DECISION_INTELLIGENCE.md).

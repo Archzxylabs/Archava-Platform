@@ -26,6 +26,7 @@ export const HANDOFF_REASONS = [
   'ambiguous_request',
   'transaction_risk',
   'sentiment',
+  'decision_recommended',
 ] as const
 export type HandoffReason = (typeof HANDOFF_REASONS)[number]
 

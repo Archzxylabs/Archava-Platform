@@ -1555,3 +1555,42 @@ If a contradiction exists, stop automatic finalization and flag the conflict for
 A standard client should feel that ARCHZXY built a tailored digital employee for their business, while ARCHZXY should feel that it configured and extended a repeatable platform rather than rebuilding the product from scratch.
 
 That is the core productization test for Archava.
+
+---
+
+## 39. Decision Intelligence — internal bounded judgment
+
+Decision Intelligence extends the Context Graph and turn pipeline as an **internal** orchestration layer. It is not a Presence or Capability tier, a priced add-on, a replacement for `BrainProvider`, or a source of facts. `DecisionProvider` is the vendor-neutral product contract; Jev is the first external adapter, and Laya remains a future seam. No pricing rule changes in this phase.
+
+### 39.1 Authority and non-purpose
+
+| Question                                                        | Authority                                     | Decision Intelligence role                              |
+| --------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| Price, stock, availability, booking/order/payment/account state | Structured authoritative DB/API               | May recommend routing; cannot supply or override a fact |
+| Currency math, ARCHZXY/client pricing, tenant capability        | Deterministic code and pricebook              | None                                                    |
+| Open-ended answer and conversation                              | `BrainProvider`, grounded by approved sources | May supply bounded advisory signals                     |
+| Permission and confirmation                                     | `ActionPolicy`                                | Cannot allow an action or waive confirmation            |
+| Input safety and entity existence                               | Validation and authoritative resolver         | Cannot validate by probability                          |
+| Side effect and success                                         | `ActionExecutor`                              | Cannot execute or report success                        |
+
+The order is **fact → deterministic rule → bounded fuzzy judgment → conversational reasoning → permission → input validation → side effect**. A confidence of 1.0 grants no authority. Structured truth always outranks retrieval, including when a provider recommends the reverse. If a live source is unavailable, retrieval cannot become an authoritative transactional answer.
+
+### 39.2 Contract, tasks, and rollout
+
+A `DecisionRequest` contains a tenant scope, redacted utterance, locale, projected context and closed typed questions. A `DecisionResponse` contains Boolean, Choice or Score answers with confidence, or explicit refusals. The first catalogue has intent classification, knowledge routing assist, clarification recommendation, handoff recommendation, and evidence sufficiency. A bounded ranking primitive can reorder only already-valid candidates; no ranking task is enabled yet. Recommendation ranking, next-best-action, lead qualification, comparison relevance, Generative UI selection, support priority, conversation stage, adaptive Presence, outcome detection and post-answer quality judging are **Planned**.
+
+Tenants may configure `off`, `shadow`, or `assist` per task. Missing configuration defaults to Foundation V1.1 behavior. `off` makes no provider call. `shadow` records a candidate and disagreement while leaving the turn unchanged. `assist` may apply only an enabled task whose response validates and clears that task's confidence floor and direction policy. Tenant floors may tighten the built-in floor. Handoff and clarification may be raised but mandatory deterministic cases cannot be suppressed. Knowledge routing may escalate to structured truth only with trusted subject candidates; it may never downgrade protected structured truth.
+
+The `DecisionOrchestrator` selects the provider, builds catalogue questions, enforces mode, timeout, response validation, per-task confidence, fallback, and trace metadata. `RuleDecisionProvider` is the offline deterministic baseline and fallback. A server-side `JevDecisionProvider` implements the same port with a mocked transport test suite; live external verification requires credentials and is separate from ordinary CI. Provider failure, timeout, refusal, malformed output and low confidence return the deterministic baseline. No business package branches on Jev identity.
+
+### 39.3 Tenant, privacy, observability, and evaluation
+
+Requests are tenant-scoped. Only projected, redacted context and limited published evidence may cross a provider boundary; raw forms, secrets, payment cards, sensitive customer state and unrelated tenant data must not. Decision traces and events are metadata-first: task, provider, mode, candidate label, confidence, effective source, fallback, disagreement, runtime change and latency. The event vocabulary includes `decision_evaluated`, `decision_fallback_used`, `decision_low_confidence`, and `decision_provider_failure`. Provider payloads and credentials must not be logged.
+
+An offline English, Indonesian and mixed-language corpus must report accuracy, per-label counts and routing critical failures. Any structured-truth-to-retrieval downgrade in effective runtime is a severe failure. Safety tests must prove that Act/Transact limits, confirmation, validation, entity resolution and executor success remain owned by their Foundation boundaries. Ordinary install, structure, lint, typecheck, test, build, verify, format and browser E2E gates must remain network-free and green. Live Jev smoke is optional until the owner supplies credentials and approves applicable retention terms.
+
+### 39.4 Acceptance for this phase
+
+The layer is reviewable when the provider-neutral contract, Rule provider, orchestrator, three modes, initial task catalogue, server-side Jev adapter, mocked transport tests, runtime safety regressions, offline eval, reference debug trace, additive tenant schema and documentation are present and ordinary gates pass. Laya and other future adapters are not implemented. This phase does not satisfy the separate §34 commercial-readiness criteria for real Act and Transact workflows.
+
+**Prior PRD sections touched:** none. §39 is additive; §§16–18, 21, 23, 26–30, 34 and the commercial rules retain their existing authority and wording.

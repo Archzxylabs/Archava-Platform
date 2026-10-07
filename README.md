@@ -5,6 +5,7 @@ A multi-tenant AI assistant platform where an assistant's behaviour is decided b
 against the policy that produced it.
 
 The product requirement is `PRD.md`. The operational contract is `agent.md`.
+The Decision Intelligence extension is described in [`docs/DECISION_INTELLIGENCE.md`](docs/DECISION_INTELLIGENCE.md).
 This file is what the repository _actually_ does, which is a smaller thing than
 either document, deliberately so. For the gap, see
 [`docs/BUILD_STATUS.md`](docs/BUILD_STATUS.md) — it classifies every PRD area as
@@ -38,23 +39,25 @@ Production build and start:
 pnpm build          # bundle the client into apps/web/dist
 pnpm start          # serve the bundle
 pnpm e2e:home       # 31 assertions against the served page
+pnpm decision:eval  # 51-case offline Rule provider and routing evaluation
 ```
 
 ## The one idea
 
 An assistant is only trustworthy if its answers are _checkable_. So the pipeline
 is a sequence of boundaries, each of which holds a port, and each port is an
-interface with a single implementation you can point at:
+interface with implementations you can point at:
 
 | Boundary                        | Port                               | In-tree implementation                               |
 | ------------------------------- | ---------------------------------- | ---------------------------------------------------- |
 | Conversation                    | `BrainProvider`                    | `ScriptedBrain`, `ReferenceBrain` (deterministic)    |
+| Bounded judgment                | `DecisionProvider`                 | `RuleDecisionProvider`; Jev server adapter           |
 | Retrieval                       | `KnowledgePort` / `KnowledgeStore` | `@archava/knowledge`, wired by `buildKnowledgeStore` |
 | Live facts                      | `StructuredTruthPort`              | `referenceTruth` (date-stated fixtures)              |
 | "Does this id exist?"           | `EntityResolver`                   | `pageEntityResolver` (page-scoped)                   |
 | "May I do it, and did it work?" | `ActionExecutor`                   | `pageExecutor` (`ui.*` only)                         |
 
-Nothing in the tree contacts a model, a PMS, or a payment provider. Every port is
+The offline reference does not contact a model, a PMS, or a payment provider. Every port is
 real, and every implementation is an honest in-tree stand-in that says so. Where a
 real system would sit, the code returns a labelled failure rather than a
 plausible-looking success — see `pageExecutor`, which will highlight a room and
@@ -80,6 +83,7 @@ a pass:
 packages/acl         query → intent → plan → response, and the ChatEvent vocabulary
 packages/assistant   turn assembly: capability gate, §9 input contract, action execution
 packages/adapters    BrainProvider implementations
+packages/decision    bounded task catalogue, Rule provider, orchestrator
 packages/chat        DOM renderers (shells, money, knowledge cards)
 packages/config      pricebook / template / currency contracts, all Zod-parsed
 packages/core        ChatEvent types shared by every surface
@@ -89,6 +93,7 @@ packages/reference   the reference tenant: fixtures, rates, knowledge, brain
 packages/sdk         Archava Web SDK — page awareness graph for a host page
 apps/web             the runnable server and the browser slice
 tools/configurator   `pnpm configurator` — intake → config set, and `POST /api/quote`
+tools/decision-eval  `pnpm decision:eval` — offline labelled evaluation
 tools/scripts        structure.mjs, verify.mjs (the honesty gate)
 tools/e2e            home.mjs
 ```

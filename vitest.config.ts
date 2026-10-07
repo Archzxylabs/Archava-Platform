@@ -21,6 +21,13 @@ function workspaceAliases(): Record<string, string> {
     if (!existsSync(manifestPath) || !existsSync(entryPath)) continue
     const name = readManifestName(manifestPath)
     if (name === null) continue
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      exports?: Record<string, string>
+    }
+    for (const [subpath, target] of Object.entries(manifest.exports ?? {})) {
+      if (subpath === '.' || !subpath.startsWith('./') || !target.startsWith('./src/')) continue
+      aliases[`${name}/${subpath.slice(2)}`] = path.join(root, entry.name, target)
+    }
     aliases[name] = entryPath
   }
   return aliases

@@ -7,13 +7,14 @@ import {
 } from '../src/index.js'
 
 /**
- * §27 names sixteen events and says what they are for; §18 (V1.1) adds four more
+ * §27 names sixteen events and says what they are for; §18 (V1.1) adds four more;
+ * §39 adds four metadata-only decision events
  * for action outcomes. The two properties that matter here are the ones that
  * keep a warehouse honest: every event carries its tenant, and nothing in this
  * module sends anything.
  */
 describe('the event catalogue', () => {
-  it('is the twenty names the PRD and §18 list, in their order', () => {
+  it('is the twenty-four names the PRD lists, in their order', () => {
     expect([...ANALYTICS_EVENTS]).toEqual([
       'conversation_started',
       'meaningful_question_answered',
@@ -38,6 +39,10 @@ describe('the event catalogue', () => {
       'action_confirmation_required',
       'action_execution_succeeded',
       'action_execution_failed',
+      'decision_evaluated',
+      'decision_fallback_used',
+      'decision_low_confidence',
+      'decision_provider_failure',
     ])
   })
 

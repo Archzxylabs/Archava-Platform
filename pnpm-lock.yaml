@@ -65,6 +65,9 @@ importers:
       '@archava/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@archava/decision':
+        specifier: workspace:*
+        version: link:../../packages/decision
       '@archava/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
@@ -122,6 +125,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
 
   packages/assistant:
     dependencies:
@@ -137,6 +143,9 @@ importers:
       '@archava/core':
         specifier: workspace:*
         version: link:../core
+      '@archava/decision':
+        specifier: workspace:*
+        version: link:../decision
       '@archava/knowledge':
         specifier: workspace:*
         version: link:../knowledge
@@ -179,6 +188,19 @@ importers:
       zod:
         specifier: 4.1.12
         version: 4.1.12
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
+  packages/decision:
+    dependencies:
+      '@archava/adapters':
+        specifier: workspace:*
+        version: link:../adapters
     devDependencies:
       typescript:
         specifier: 5.9.3
@@ -274,6 +296,25 @@ importers:
       zod:
         specifier: 4.1.12
         version: 4.1.12
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
+  tools/decision-eval:
+    dependencies:
+      '@archava/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
+      '@archava/decision':
+        specifier: workspace:*
+        version: link:../../packages/decision
+      '@archava/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
     devDependencies:
       typescript:
         specifier: 5.9.3

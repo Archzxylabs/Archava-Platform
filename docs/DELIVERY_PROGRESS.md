@@ -1,0 +1,47 @@
+# Archava delivery progress
+
+**Baseline:** 27 September 2026, before a1–a3 Decision Intelligence results are audited.
+
+**Target:** Archava v1 commercial readiness in `PRD.md` §34, including the platform needed to operate it.
+
+**Current estimate after audit:** **about 29% weighted delivery coverage. Release readiness: not met.**
+
+The audited Decision Intelligence line moves from 10% to **65%**: contracts, Rule provider, orchestrator, three modes, five tasks, assistant/reference integration, offline evaluation, metadata observability, and mocked Jev adapter are verified. Live Jev behavior, provider data terms, production telemetry and service hosting remain open. Its 8-point weighted contribution moves from 0.80 to 5.20, lifting the total from **24.15** to **28.55/100 ≈ 29%**. Other lines keep their baseline scores because this phase did not deliver voice, avatar, real Act/Transact workflows, tenant operations, or production deployment. This estimate is independent of the Rule provider's eval accuracy.
+
+This is a planning estimate, not a measurement of code volume, test count, developer productivity, revenue, or runtime performance. The weights express how much each line contributes to the target. A passing unit test raises a line only when it proves the relevant user or operator capability. Mocked integrations and reference fixtures are labelled as such.
+
+## Baseline scorecard
+
+| Delivery line                                         |   Weight | Coverage |       Weighted points | Evidence and principal gap                                                                                                                     |
+| ----------------------------------------------------- | -------: | -------: | --------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product specification and architecture                |       5% |      75% |                  3.75 | `PRD.md`, `agent.md`, `docs/ARCHITECTURE.md`; Decision Intelligence addendum and production architecture remain open.                          |
+| Core context, knowledge, policy, and turn pipeline    |      12% |      50% |                  6.00 | `packages/core`, `knowledge`, `acl`, `assistant`; offline turn works, authoritative production systems do not.                                 |
+| Decision Intelligence                                 |       8% |      10% |                  0.80 | Uncommitted `DecisionProvider` port and tests only; orchestration, runtime integration, Jev adapter, and eval results are pending.             |
+| Chat, web SDK, and reference browser                  |       8% |      50% |                  4.00 | `packages/chat`, `sdk`, `apps/web`, `tools/e2e`; one offline tenant/reference slice, no deployed multi-tenant product.                         |
+| Voice and realtime conversation                       |      10% |       0% |                  0.00 | No LiveKit/realtime voice runtime.                                                                                                             |
+| Human avatar presence                                 |       8% |       0% |                  0.00 | No live avatar rendering or Human preflight/runtime fallback.                                                                                  |
+| Act workflows and external integrations               |      10% |      10% |                  1.00 | Policy/validation/executor boundaries exist; no real booking, CRM write, or email workflow completes.                                          |
+| Transact, payment, and receipts                       |      12% |       5% |                  0.60 | Action vocabulary and safety boundaries exist; no payment or receipt integration.                                                              |
+| Tenant persistence, admin, and isolation in operation |      10% |      10% |                  1.00 | Tenant-scoped shapes and reference checks exist; no shared database, provisioning, auth, or client admin.                                      |
+| Studio and commercial configurator                    |       7% |      50% |                  3.50 | Deterministic pricebook/configurator and browser Studio slice exist; persistence and full proposal workflow remain.                            |
+| Observability, security, and reliability              |       6% |      25% |                  1.50 | Event shapes, masking and gates exist; no production telemetry sinks, retention controls, operational hardening, or live reliability evidence. |
+| Verification and delivery operations                  |       4% |      50% |                  2.00 | CI, structure/type/lint/test/build gates and reference browser E2E exist; production deploy and integration/load/security verification remain. |
+| **Total**                                             | **100%** |          | **24.15 / 100 ≈ 24%** |                                                                                                                                                |
+
+## How to update it
+
+`weighted points = weight × coverage / 100`; sum the points for the total. Coverage is an evidence-backed estimate, rounded to the nearest practical milestone rather than inferred from lines of code:
+
+- **0%:** absent.
+- **10–25%:** contract, scaffold, or isolated tested behavior.
+- **50%:** runnable and tested end-to-end reference behavior, with mocks/fixtures clearly identified.
+- **75%:** real provider or business system integrated and tested in a controlled environment.
+- **100%:** the applicable PRD acceptance criteria are met, documented, and operationally verified.
+
+The lead updates a row only after auditing source, tests, and the relevant runnable result. Record the evidence and remaining gap in the same row. Work in progress, agent reports without source audit, and live provider claims without a live test do not count as completed delivery.
+
+The percentage does not replace release gates. In particular, the current PRD §34 criteria for real Act booking/CRM/email and Transact payment → confirmation → receipt remain unmet. Voice and Human Presence are also absent. A high aggregate percentage must not be used to claim commercial readiness while a required gate is open.
+
+## Next review point
+
+After the owner says **all done** for a1–a3, audit their diffs, integrate the Decision Layer, run the full gate set, and revise the Decision Intelligence row based on verified behavior. Reassess other rows only if their actual capabilities changed.
