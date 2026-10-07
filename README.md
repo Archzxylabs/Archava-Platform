@@ -12,6 +12,21 @@ either document, deliberately so. For the gap, see
 Implemented / Partially Implemented / Planned / Not Implemented and is the honest
 answer to "is this production ready".
 
+The reusable realtime voice/avatar starter is in [Archava Template](<Archava Template/README.md>).
+It is derived from Archava Onchain without wallet/contracts and runs as a standalone
+npm project, with its own frontend, API, Python worker, setup profiles, and deployment guide.
+Run its commands inside that directory; it is separate from the pnpm workspaces below.
+
+Decision Intelligence, the Act backend packages, the website/workspace frontend,
+and the portable realtime template are maintained together in this repository.
+The frontend demo and template have separate runtime boundaries; consolidating
+their source does not connect CRM/ERP, providers, or production Act workflows.
+
+For the new website at `/archava` and CRM/ERP workspace at `/workspace`, see
+[`docs/FRONTEND.md`](docs/FRONTEND.md). Both use fictional browser-local records.
+For the server-side booking/email packages and remaining deployment requirements,
+see [`docs/ACT_PILOT.md`](docs/ACT_PILOT.md).
+
 ## What runs today
 
 One vertical slice runs end to end, offline, in a browser:
@@ -131,6 +146,10 @@ Nothing here gates the _prose_. This file and
 [`docs/BUILD_STATUS.md`](docs/BUILD_STATUS.md) are maintained by hand, which is
 the one place an honesty claim can go stale — so when reading either, read what
 the gate output actually said rather than what the sentence claims.
+
+CI also checks `Archava Template` independently with `npm ci`, JavaScript tests,
+offline Python guardrails, and its production build. Those commands run inside
+the template directory; `pnpm verify` covers the platform workspace only.
 
 ## Status
 

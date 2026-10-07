@@ -5,6 +5,8 @@ import reactHooks from 'eslint-plugin-react-hooks'
 export default tseslint.config(
   {
     ignores: [
+      // The reusable template is a standalone npm project with its own checks.
+      'Archava Template/**',
       '**/node_modules/**',
       '**/dist/**',
       '**/build/**',

@@ -2,9 +2,8 @@ name: CI
 
 # The gates a PR must clear before review, in the order they fail fastest.
 #
-# They mirror `package.json` one-for-one rather than adding a private second
-# opinion: "CI passes" has to mean the same thing as `pnpm verify` passing on a
-# laptop, or it means nothing at all.
+# The platform job mirrors `pnpm verify`. The standalone npm template has its
+# own job so neither project's checks can silently omit the other's source.
 
 on:
   pull_request:
@@ -59,3 +58,33 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  template:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Archava Template
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Node version from .tool-versions
+        working-directory: .
+        run: echo "NODE_VERSION=$(grep '^node ' .tool-versions | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: Archava Template/package-lock.json
+
+      - name: Install template
+        run: npm ci
+
+      - name: Test template
+        run: npm test
+
+      - name: Test offline agent guardrails
+        run: npm run test:agent
+
+      - name: Build template
+        run: npm run build

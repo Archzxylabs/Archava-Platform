@@ -1,0 +1,14 @@
+.env
+.env.*
+**/.env
+**/.env.*
+.venv/
+node_modules/
+dist/
+backend/
+prompts/
+docs/
+exports/
+*.log
+*.pyc
+*.tsbuildinfo

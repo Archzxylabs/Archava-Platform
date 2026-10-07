@@ -6,6 +6,15 @@
 
 **Current estimate after Act pilot audit:** **about 30% weighted delivery coverage. Release readiness: not met.**
 
+**Source consolidation, 7 October 2026:** Decision Intelligence, Act host/storage/
+confirmation/Postmark packages, the website and local CRM/ERP frontend, and the
+portable voice/avatar template now share one source tree. The 30% figure remains
+the last audited commercial score; the historical scorecard below does not yet
+score the standalone template or new frontend. Source consolidation does not
+establish shared Chat/Voice/Human intelligence, live Act/Transact, authentication,
+CRM/ERP integration, or production deployment. The operational-readiness tasks
+remain pending in `delegation/act-operational-readiness/`.
+
 The audited Decision Intelligence line moves from 10% to **65%**: contracts, Rule provider, orchestrator, three modes, five tasks, assistant/reference integration, offline evaluation, metadata observability, and mocked Jev adapter are verified. Live Jev behavior, provider data terms, production telemetry and service hosting remain open. Its 8-point weighted contribution moves from 0.80 to 5.20, lifting the total from **24.15** to **28.55/100 ≈ 29%**. Other lines keep their baseline scores because this phase did not deliver voice, avatar, real Act/Transact workflows, tenant operations, or production deployment. This estimate is independent of the Rule provider's eval accuracy.
 
 The next Act pilot adds tenant-scoped booking and email executor ports plus mocked

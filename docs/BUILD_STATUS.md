@@ -1,5 +1,13 @@
 # Build status
 
+The consolidated source also includes the [website and CRM/ERP frontend](FRONTEND.md)
+and the [portable realtime template](<../Archava Template/README.md>). Frontend
+records and approvals are browser-local demos. The template is a standalone npm
+project, has provider SDK dependencies, and is not connected to the platform's
+shared intelligence core. The workspace dependency and runtime classifications
+below refer to the pnpm platform unless explicitly stated otherwise. Neither
+addition closes the commercial-readiness gates.
+
 An honest classification of every area of `PRD.md` against this tree. The four
 labels mean:
 
