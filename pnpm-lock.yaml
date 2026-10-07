@@ -113,6 +113,66 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  packages/act:
+    dependencies:
+      '@archava/acl':
+        specifier: workspace:*
+        version: link:../acl
+      '@archava/act-booking':
+        specifier: workspace:*
+        version: link:../act-booking
+      '@archava/act-email':
+        specifier: workspace:*
+        version: link:../act-email
+      '@archava/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@archava/assistant':
+        specifier: workspace:*
+        version: link:../assistant
+      '@archava/config':
+        specifier: workspace:*
+        version: link:../config
+      '@archava/core':
+        specifier: workspace:*
+        version: link:../core
+      '@archava/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
+  packages/act-booking:
+    dependencies:
+      '@archava/assistant':
+        specifier: workspace:*
+        version: link:../assistant
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
+  packages/act-email:
+    dependencies:
+      '@archava/assistant':
+        specifier: workspace:*
+        version: link:../assistant
+    devDependencies:
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@24.9.1)(tsx@4.20.6)
+
   packages/adapters:
     dependencies:
       '@archava/config':
