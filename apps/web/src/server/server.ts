@@ -22,7 +22,7 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build, type BuildOptions, type Plugin } from 'esbuild'
 import { answerQuote } from './api.js'
@@ -40,6 +40,7 @@ const webDir = join(appDir, '..', '..')
 const repoDir = join(webDir, '..', '..')
 const distDir = join(webDir, 'dist')
 const pagesDir = join(webDir, 'pages')
+const publicDir = join(webDir, 'public')
 
 const PORT = Number(process.env['PORT'] ?? 4173)
 const HOST = process.env['HOST'] ?? '127.0.0.1'
@@ -61,12 +62,16 @@ function parseMode(argv: readonly string[]): Mode {
 const ENTRIES: readonly { readonly from: string; readonly name: string }[] = [
   { from: '../main.ts', name: 'app' },
   { from: '../studio.ts', name: 'studio' },
+  { from: '../frontend/marketing.ts', name: 'marketing' },
+  { from: '../frontend/workspace.ts', name: 'workspace' },
 ]
 
 /** Every page this app serves, and the file behind it. */
 const PAGES: Readonly<Record<string, string>> = {
   '/': 'index.html',
   '/studio': 'studio.html',
+  '/archava': 'archava.html',
+  '/workspace': 'workspace.html',
 }
 
 const TYPES: Readonly<Record<string, string>> = {
@@ -75,6 +80,11 @@ const TYPES: Readonly<Record<string, string>> = {
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.ttf': 'font/ttf',
+  '.webp': 'image/webp',
+  '.txt': 'text/plain; charset=utf-8',
 }
 
 /**
@@ -202,6 +212,18 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     return
   }
 
+  if (
+    url.pathname.startsWith('/assets/') ||
+    url.pathname === '/archava.css' ||
+    url.pathname === '/workspace.css'
+  ) {
+    const asset = resolve(publicDir, `.${decodeURIComponent(url.pathname)}`)
+    if (asset.startsWith(`${publicDir}${sep}`)) {
+      await sendFile(asset, response)
+      return
+    }
+  }
+
   // The path a bundle is served at is `<name>.js`, which is what the pages ask
   // for. Comparing the bare name would match nothing: `/app.js` is not `/app`,
   // and a page whose script 404'd is a page that renders an empty shell.
@@ -220,14 +242,14 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
 }
 
 async function sendFile(path: string, response: ServerResponse): Promise<void> {
-  let text: string
+  let content: Uint8Array
   try {
-    text = await readFile(path, 'utf8')
+    content = await readFile(path)
   } catch {
     respond(response, 404, TYPES['.html'] ?? 'text/plain', 'not found')
     return
   }
-  respond(response, 200, TYPES[extension(path)] ?? 'text/plain', text)
+  respond(response, 200, TYPES[extension(path)] ?? 'application/octet-stream', content)
 }
 
 function extension(path: string): string {
@@ -235,7 +257,12 @@ function extension(path: string): string {
   return dot < 0 ? '' : path.slice(dot)
 }
 
-function respond(response: ServerResponse, status: number, type: string, body: string): void {
+function respond(
+  response: ServerResponse,
+  status: number,
+  type: string,
+  body: string | Uint8Array,
+): void {
   response.statusCode = status
   response.setHeader('content-type', type)
   response.end(body)

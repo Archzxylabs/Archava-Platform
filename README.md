@@ -12,6 +12,11 @@ either document, deliberately so. For the gap, see
 Implemented / Partially Implemented / Planned / Not Implemented and is the honest
 answer to "is this production ready".
 
+The reusable realtime voice/avatar starter is in [Archava Template](<Archava Template/README.md>).
+It is derived from Archava Onchain without wallet/contracts and runs as a standalone
+npm project, with its own frontend, API, Python worker, setup profiles, and deployment guide.
+Run its commands inside that directory; it is separate from the pnpm workspaces below.
+
 ## What runs today
 
 One vertical slice runs end to end, offline, in a browser:

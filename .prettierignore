@@ -7,3 +7,6 @@ pnpm-lock.yaml
 # produces noise on files nobody reads.
 dist/
 node_modules/
+
+# Standalone npm template; retain its own source formatting.
+Archava Template/

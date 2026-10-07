@@ -27,6 +27,7 @@
     "decision:jev-smoke": "tsx tools/decision-eval/live-jev.ts",
     "structure": "node tools/scripts/structure.mjs",
     "e2e:home": "node tools/e2e/home.mjs",
+    "e2e:frontend": "node tools/e2e/frontend.mjs",
     "verify": "node tools/scripts/verify.mjs"
   },
   "devDependencies": {
