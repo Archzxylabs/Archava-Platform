@@ -26,7 +26,7 @@ Both executors validate their direct-call shape defensively, never echo gateway 
 
 The upstream `buildIdempotencyKey` includes canonicalized inputs. The attempt-store adapter protects that key at rest, but provider adapters and observability sinks must likewise transform it to an opaque keyed value before sending or logging it. A key rotation without an old-key lookup or migration would make old attempts invisible and void replay protection.
 
-`@archava/act-confirmation` supplies an opaque, short-lived challenge bound to tenant, session, action and validated input digest. Its store port must atomically consume a challenge once. It is not yet wired into the turn host: `runTurn` still accepts `confirmedActionIds` from its caller, and the reference browser confirmation card is only a UI demonstration. A production host must ignore browser-supplied confirmation flags, verify the challenge on the server, and derive the flag only from a matching verified receipt. It must also preserve the same turn identity and `occurredAt` across retries so the idempotency key does not change.
+`@archava/act-confirmation` supplies an opaque, short-lived challenge bound to tenant, session, action and validated input digest. Its store port must atomically consume a challenge once. The new `@archava/act-host` library converts its verified receipt into `runTurn` confirmation and drops browser-supplied flags, but no production HTTP host calls that library yet. The reference browser confirmation card is only a UI demonstration. A deployment must preserve the same turn identity and `occurredAt` across retries so the idempotency key does not change.
 
 ## What the tests prove
 
@@ -38,5 +38,44 @@ These are offline safety and integration tests. The optional local PostgreSQL ve
 
 1. Choose the target tenant's booking system and mail provider from actual tenant requirements; verify each current official API and idempotency semantics.
 2. Connect the attempt stores to the selected production database with a stable key and retention policy; build provider adapters, authoritative slot/customer/template resolution, tenant credential isolation, and provider-specific error mapping.
-3. Build a server host that issues and atomically consumes confirmation challenges, derives trusted turn confirmation, and injects the composed executor only for approved tenants. Keep credentials out of browser bundles.
+3. Wire the server-side host through an authenticated tenant/session route, with an atomic durable attempt ledger and the composed executor only for approved tenants. Keep credentials out of browser bundles.
 4. Run controlled external booking and email tests, prove replay and recovery after ambiguous timeout, then update PRD §34 delivery status. Keep payment and Transact separate.
+
+## Server host integration seam
+
+`@archava/act-host` adds a server-side `review` → `present` boundary. The
+visitor supplies an utterance, one candidate action and, on presentation, the
+issued challenge. The host supplies tenant/session identity, capability, role,
+policy, resolver, ports and executor. `review` applies ActionPolicy and the
+registered input contract before challenge issue. `present` checks the attempt
+belongs to this host session, validates inputs again, spends the challenge, and
+passes its verified receipt to `runTurn` with only the bound action. `runTurn`
+still applies its own policy, validation and entity-resolution gates. A failed
+or unknown execution cannot be presented as a confirmed success by the host.
+`present` returns a narrow deterministic projection without action inputs,
+idempotency keys, model components, or internal turn metadata.
+
+`@archava/act-confirmation-pg` implements the challenge store with a
+parameterized SQL client and a migration for challenge metadata and HMAC
+digests. Its conditional update spends only one matching, pending challenge
+inside its issued-to-expiry window. An optional disposable local PostgreSQL
+verifier checks actual database behavior and races; ordinary tests remain
+database-free. A deployment must supply a database driver, apply the migration
+and manage retention.
+
+`@archava/act-postmark` maps an already-approved template and sender to
+Postmark's template-send endpoint. It requires an injected server token and
+never retries automatically. An HTTP 200 with a successful response and a
+validated provider `MessageID` means accepted for delivery, never delivered
+to the recipient. Timeout and uncertain responses remain unknown. The raw
+idempotency key is replaced by a tenant-separated HMAC metadata label; Postmark
+does not deduplicate on that label. The provided status port always returns
+unknown because positive reconciliation has not been implemented.
+
+These packages are not composed into a production route. The host needs a
+durable attempt ledger whose atomic operation returns one canonical
+`occurredAt` under concurrent review. It also needs an explicit lifecycle for
+a later new intent with the same action and inputs in one session; the current
+ledger treats that as the same attempt. Until those contracts and tenant-owned
+wiring exist, the host is a tested integration seam, not a production-safe Act
+workflow. No live PMS booking, Postmark send or delivery is claimed.
